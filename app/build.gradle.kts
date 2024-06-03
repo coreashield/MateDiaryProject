@@ -78,4 +78,10 @@ dependencies {
 //    implementation(platform("io.github.jan-tennert.supabase:bom:2.4.2"))
 //    implementation("io.github.jan-tennert.supabase:postgrest-kt")
 //    implementation("io.ktor:ktor-client-android:2.3.11")
+
+//    구글 로그인
+    implementation ("androidx.credentials:credentials:1.2.2")
+    implementation ("androidx.credentials:credentials-play-services-auth:1.2.2")
+    implementation ("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+
 }
