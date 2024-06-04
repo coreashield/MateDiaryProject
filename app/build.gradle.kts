@@ -68,20 +68,21 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-////    photopicker
-//    implementation("com.github.marcoantonio.compose-calendar:compose-calendar:1.0.0")
 
     implementation(platform("io.github.jan-tennert.supabase:bom:2.4.2"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation(libs.ktor.client)
     implementation("io.coil-kt:coil-compose:2.6.0")
-//    implementation(platform("io.github.jan-tennert.supabase:bom:2.4.2"))
-//    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-//    implementation("io.ktor:ktor-client-android:2.3.11")
+
 
 //    구글 로그인
     implementation ("androidx.credentials:credentials:1.2.2")
     implementation ("androidx.credentials:credentials-play-services-auth:1.2.2")
     implementation ("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
+
+
 
 }
