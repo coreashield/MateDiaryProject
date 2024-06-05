@@ -60,6 +60,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.protolite.well.known.types)
+    implementation(libs.androidx.appcompat)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -83,6 +86,14 @@ dependencies {
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
 
+    implementation ("androidx.activity:activity-compose:1.3.1")
+//    implementation ("androidx.compose.ui:ui:1.0.5")
+//    implementation ("androidx.compose.material:material:1.0.5")
+//    implementation ("androidx.compose.ui:ui-tooling-preview:1.0.5")
+    implementation ("com.prolificinteractive:material-calendarview:1.4.3")
 
+    val nav_version = "2.7.7"
 
+    implementation("androidx.navigation:navigation-compose:$nav_version")
+    implementation ("androidx.compose.material:material:1.4.2")
 }
