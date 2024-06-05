@@ -411,9 +411,9 @@ fun UploadImageButton() {
 }
 
 fun createSupabaseClient(): SupabaseClient {
-    val supabaseUrl = ""
+    val supabaseUrl = "https://rooxnjbwwvkgbwlfdnen.supabase.co"
     val supabaseKey =
-        ""
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvb3huamJ3d3ZrZ2J3bGZkbmVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTcxMjkyNjAsImV4cCI6MjAzMjcwNTI2MH0.b982U5hA2NqyXEoxqoEHoH18NQexwftWoXd0gHoObB4"
     return createSupabaseClient(
         supabaseUrl = supabaseUrl,
         supabaseKey = supabaseKey
@@ -449,4 +449,3 @@ fun createMateInfo(
         day = dayState.value
     )
 }
-

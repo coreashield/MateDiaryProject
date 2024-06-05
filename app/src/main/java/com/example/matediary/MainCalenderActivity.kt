@@ -39,6 +39,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.matediary.ui.theme.MateDiaryTheme
@@ -48,11 +49,10 @@ class MainCalenderActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
             MateDiaryTheme {
-                MainCalenderView(navController)
+                Navigator()
             }
         }
     }
@@ -124,7 +124,28 @@ fun CalendarViewDemo() {
 }
 
 @Composable
+fun Navigator() {
+    val navController = rememberNavController()
+    NavHost(navController, startDestination = "calendar") {
+        composable("calendar") {
+            MainCalenderView(navController)
+        }
+        composable("gallery") {
+
+        }
+        composable("mateinfo") {  4
+            MainScreen()
+        }
+        composable("diary"){
+
+        }
+    }
+}
+
+
+@Composable
 fun BottomNavigationButtons(navController: NavController) {
+
     // Bottom Navigation 아이템들
     val items = listOf(
         Screen.Home,
@@ -143,19 +164,18 @@ fun BottomNavigationButtons(navController: NavController) {
                 icon = {
                     when (screen) {
                         Screen.Home -> Icon(Icons.Default.DateRange, contentDescription = null)
-                        Screen.Gallery -> Icon(Icons.Default.AccountCircle,contentDescription = null)
+                        Screen.Gallery -> Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = null
+                        )
+
                         Screen.Settings -> Icon(Icons.Default.Person, contentDescription = null)
                     }
                 },
                 label = { Text(screen.title) },
                 selected = currentDestination?.route == screen.route,
                 onClick = {
-                    navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
+                         navController.navigate(screen.route) {
                     }
                 }
             )
@@ -164,8 +184,9 @@ fun BottomNavigationButtons(navController: NavController) {
 }
 
 sealed class Screen(val route: String, val title: String) {
-    object Home : Screen("home", "Home")
+    object Home : Screen("calendar", "Home")
     object Gallery : Screen("gallery", "갤러리")
-    object Settings : Screen("settings", "정보")
+    object Settings : Screen("mateinfo", "정보")
 }
+
 
