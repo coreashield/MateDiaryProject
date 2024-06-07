@@ -13,7 +13,7 @@
         android:theme="@style/Theme.MateDiary"
         tools:targetApi="31">
         <activity
-            android:name=".DailyDiary"
+            android:name=".MainCalenderActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.MateDiary">
@@ -24,8 +24,8 @@
         </activity>
         <activity android:name=".MainActivity"></activity>
         <activity android:name=".LoginActivity"></activity>
-<!--        <activity android:name=".DailyDiary"></activity>-->
-        <activity android:name=".MainCalenderActivity"></activity>
+        <activity android:name=".DailyDiary"></activity>
+<!--        <activity android:name=".MainCalenderActivity"></activity>-->
 
     </application>
 

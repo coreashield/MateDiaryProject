@@ -1,6 +1,5 @@
 package com.example.matediary
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.CalendarView
 import androidx.activity.ComponentActivity
@@ -9,9 +8,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
@@ -22,35 +23,36 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.matediary.ui.theme.MateDiaryTheme
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class MainCalenderActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
-            val navController = rememberNavController()
             MateDiaryTheme {
                 Navigator()
             }
@@ -60,16 +62,24 @@ class MainCalenderActivity : ComponentActivity() {
 
 @Composable
 fun MainCalenderView(navController: NavHostController) {
+
+    var mateName by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxSize(),
         verticalArrangement = Arrangement.Center, // Center로 변경
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "달력 이미지", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-
-        CalendarViewDemo()
-
+        LaunchedEffect(key1 = Unit) {
+            CoroutineScope(Dispatchers.IO).launch {
+                if (getData().isNotEmpty()) {
+                    mateName = getData()[0].name
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(15.dp))
+        Text(text = "$mateName 메이트님 안녕하세요 :-)", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        CalendarView(navController)
         Column(
             modifier = Modifier.fillMaxHeight(),
             verticalArrangement = Arrangement.Bottom
@@ -80,21 +90,10 @@ fun MainCalenderView(navController: NavHostController) {
 }
 
 
-@Preview(showBackground = true)
 @Composable
-fun MainCalenderViewPreview() {
-//    MainCalenderView(navController)
-}
-
-
-@Composable
-fun CalendarViewDemo() {
-    // Holds state
+fun CalendarView(navController: NavController) {
     val selectedDate = remember { mutableStateOf("") }
-
-    // Get today's date
     val today = Calendar.getInstance()
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,19 +102,17 @@ fun CalendarViewDemo() {
                 shape = RectangleShape
             )
     ) {
-
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-
-            // CalendarView
             AndroidView(factory = { context ->
                 CalendarView(context).apply {
-                    // Set today's date as default
-                    setDate(today.timeInMillis)
+                    date = today.timeInMillis
 
                     setOnDateChangeListener { _, year, month, dayOfMonth ->
-                        selectedDate.value = "$year/${month + 1}/$dayOfMonth"
+                        val date = "$year-${month + 1}-$dayOfMonth"
+                        selectedDate.value = date
+                        navController.navigate("diary/$date")
                     }
                 }
             }, modifier = Modifier.padding(top = 20.dp))
@@ -123,21 +120,25 @@ fun CalendarViewDemo() {
     }
 }
 
+
 @Composable
 fun Navigator() {
+    val supabase = createSupabaseClient()
     val navController = rememberNavController()
     NavHost(navController, startDestination = "calendar") {
         composable("calendar") {
             MainCalenderView(navController)
         }
         composable("gallery") {
-
+//            DiaryScreen(date)
         }
         composable("mateinfo") {  4
-            MainScreen()
+            MainScreen(navController)
         }
-        composable("diary"){
 
+        composable("diary/{date}") { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date")
+            DiaryScreen(date,navController,supabase)
         }
     }
 }
@@ -145,7 +146,6 @@ fun Navigator() {
 
 @Composable
 fun BottomNavigationButtons(navController: NavController) {
-
     // Bottom Navigation 아이템들
     val items = listOf(
         Screen.Home,
@@ -190,3 +190,16 @@ sealed class Screen(val route: String, val title: String) {
 }
 
 
+suspend fun getData(): List<MateInfo> {
+    val supabase = createSupabaseClient()
+    val result = supabase.from("mateinfo")
+//        .select(columns = Columns.list("type", "name","year","month"))
+        .select()
+        {
+            filter {
+                eq("user", "jang")
+            }
+        }.decodeAs<List<MateInfo>>()
+
+    return result
+}

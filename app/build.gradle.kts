@@ -1,3 +1,7 @@
+import org.jetbrains.kotlin.konan.properties.Properties
+import java.io.FileInputStream
+
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -7,6 +11,9 @@ plugins {
 android {
     namespace = "com.example.matediary"
     compileSdk = 34
+    //
+    val localProperties = Properties().apply { load(project.rootProject.file("key.properties").inputStream()) }
+//    localProperties.load(FileInputStream(rootProject.file("key.properties")))
 
     defaultConfig {
         applicationId = "com.example.matediary"
@@ -19,6 +26,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        buildConfigField("String", "API_KEY", localProperties.getProperty("api_Key"))
+        buildConfigField("String", "API_URL", localProperties.getProperty("api_URL"))
+//        buildConfigField("String", "API_KEY", "\"${localProperties.getProperty("api_Key")}\"")
+
     }
 
     buildTypes {
@@ -39,6 +50,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -96,4 +108,6 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation ("androidx.compose.material:material:1.4.2")
+
+    implementation ("com.google.code.gson:gson:2.8.8")
 }
