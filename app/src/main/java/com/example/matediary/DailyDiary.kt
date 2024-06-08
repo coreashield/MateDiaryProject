@@ -12,14 +12,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -29,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +60,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import java.text.SimpleDateFormat
+import java.util.Calendar
 
 class DailyDiary : ComponentActivity() {}
 
@@ -59,7 +69,7 @@ class DailyDiary : ComponentActivity() {}
 fun DiaryScreen(date: String?, navController: NavHostController, supabase: SupabaseClient) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var diaryData by remember { mutableStateOf("") }
-    val insertInfo = createDiaryLog("jang", diaryData)
+    var diaryLogs by remember { mutableStateOf(emptyList<DiaryLog>()) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -68,11 +78,34 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
         }
     )
     val context = LocalContext.current
+
+    //선택 된 날짜에 일기 데이터가 있다면 일기 데이터 변수에 담기
+    LaunchedEffect(key1 = Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val logs = DiarygGetData(date)
+            if (logs.isNotEmpty()) {
+                diaryData = logs[0].diary
+            } else {
+                diaryData = ""
+            }
+            diaryLogs = logs
+        }
+    }
+
+    //DB 데이터 요청
+    val insertInfo = createDiaryLog(
+        inputUser = "jang",
+        inputdiary = diaryData,
+        inputCreated_at = date.toString()
+    )
+
     Column(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .fillMaxHeight(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
+
     ) {
         Row(
             modifier = Modifier
@@ -137,6 +170,10 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
                 Text(text = "삭제")
             }
         }
+
+        DiaryTable(diaryLogs)
+        // 일기 테이블 표시
+
     }
 }
 
@@ -186,15 +223,66 @@ fun MainImaeSelect(
 data class DiaryLog(
     val user: String,
     val diary: String,
-
-    )
+    val created_at: String,
+)
 
 fun createDiaryLog(
-    user: String,
-    diary: String,
+    inputUser: String,
+    inputdiary: String,
+    inputCreated_at: String,
 ): DiaryLog {
     return DiaryLog(
-        user = "jang",
-        diary = diary,
+        user = inputUser,
+        diary = inputdiary,
+        created_at = inputCreated_at,
     )
 }
+
+suspend fun DiarygGetData(date: String?): List<DiaryLog> {
+    val supabase = createSupabaseClient()
+
+    // yyyyMMdd 형식으로 변환
+    val formattedDate = date?.let {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd") // 기존 형식
+        val outputFormat = SimpleDateFormat("yyyyMMdd") // 원하는 형식
+        val parsedDate = inputFormat.parse(it)
+        outputFormat.format(parsedDate)
+    }
+
+    val nextDate = formattedDate?.let {
+        val sdf = SimpleDateFormat("yyyyMMdd")
+        val calendar = Calendar.getInstance()
+        calendar.time = sdf.parse(it)
+        calendar.add(Calendar.DATE, 1)
+        sdf.format(calendar.time)
+    }
+
+    val result = supabase.from("DailyLog")
+//        .select(columns = Columns.list("diary"))
+        .select()
+        {
+            filter {
+                and {
+                    eq("user", "jang")
+                    DiaryLog::created_at eq  formattedDate
+                    DiaryLog::created_at lt nextDate
+                }
+            }
+        }.decodeAs<List<DiaryLog>>()
+
+    return result
+}
+
+@Composable
+fun DiaryTable(diaryLogs: List<DiaryLog>) {
+    Column {
+        // 데이터 행
+        diaryLogs.forEach { log ->
+            Row(Modifier
+                .fillMaxWidth()) {
+                Text(log.diary, Modifier.padding(8.dp))
+            }
+        }
+    }
+}
+
