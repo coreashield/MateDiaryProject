@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,9 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,9 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -43,6 +40,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.matediary.ui.theme.MateDiaryTheme
+import createSupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +52,7 @@ class MainCalenderActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MateDiaryTheme {
+//                NavigationBarSample()
                 Navigator()
             }
         }
@@ -77,13 +76,9 @@ fun MainCalenderView(navController: NavHostController) {
                 }
             }
         }
-        Spacer(modifier = Modifier.height(15.dp))
-        Text(text = "$mateName 메이트님 안녕하세요 :-)", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        CalendarView(navController)
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.Bottom
-        ) {
+//        Spacer(modifier = Modifier.height(15.dp))
+        Column{
+            CalendarView(navController,mateName)
             BottomNavigationButtons(navController)
         }
     }
@@ -91,9 +86,14 @@ fun MainCalenderView(navController: NavHostController) {
 
 
 @Composable
-fun CalendarView(navController: NavController) {
+fun CalendarView(navController: NavController,mateName:String) {
     val selectedDate = remember { mutableStateOf("") }
     val today = Calendar.getInstance()
+
+    //전체화면 비율에 따라 달력, 네비게이션 크기 수정
+    val screenHeight = LocalConfiguration.current.screenHeightDp
+    val desiredHeight = (screenHeight * 0.93).dp
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,8 +103,15 @@ fun CalendarView(navController: NavController) {
             )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .height(desiredHeight)
+                .padding(16.dp)
         ) {
+
+            Text(text = "이름 : $mateName",
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally))
+
             AndroidView(factory = { context ->
                 CalendarView(context).apply {
                     date = today.timeInMillis
@@ -130,15 +137,15 @@ fun Navigator() {
             MainCalenderView(navController)
         }
         composable("gallery") {
-//            DiaryScreen(date)
+            DatePickerView(navController)
         }
-        composable("mateinfo") {  4
+        composable("mateinfo") {
             MainScreen(navController)
         }
 
         composable("diary/{date}") { backStackEntry ->
             val date = backStackEntry.arguments?.getString("date")
-            DiaryScreen(date,navController,supabase)
+            DiaryScreen(date, navController, supabase)
         }
     }
 }
@@ -146,7 +153,6 @@ fun Navigator() {
 
 @Composable
 fun BottomNavigationButtons(navController: NavController) {
-    // Bottom Navigation 아이템들
     val items = listOf(
         Screen.Home,
         Screen.Gallery,
@@ -169,13 +175,13 @@ fun BottomNavigationButtons(navController: NavController) {
                             contentDescription = null
                         )
 
-                        Screen.Settings -> Icon(Icons.Default.Person, contentDescription = null)
+                        Screen.Settings -> Icon(Icons.Default.AccountBox, contentDescription = null)
                     }
                 },
                 label = { Text(screen.title) },
                 selected = currentDestination?.route == screen.route,
                 onClick = {
-                         navController.navigate(screen.route) {
+                    navController.navigate(screen.route) {
                     }
                 }
             )
@@ -200,6 +206,6 @@ suspend fun getData(): List<MateInfo> {
                 eq("user", "jang")
             }
         }.decodeAs<List<MateInfo>>()
-
     return result
 }
+

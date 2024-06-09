@@ -74,6 +74,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.protolite.well.known.types)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.compose.material)
+    implementation(libs.androidx.compose.material.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -110,4 +112,8 @@ dependencies {
     implementation ("androidx.compose.material:material:1.4.2")
 
     implementation ("com.google.code.gson:gson:2.8.8")
+
+    implementation("androidx.compose.material3:material3:1.3.0-beta02")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.4.3")
+
 }

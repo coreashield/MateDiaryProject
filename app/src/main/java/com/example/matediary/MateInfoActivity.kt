@@ -25,15 +25,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -45,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Blue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -53,33 +50,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import coil.compose.rememberImagePainter
+import coil.compose.rememberAsyncImagePainter
+import createSupabaseClient
+import getFileUrlFromSupabase
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import uploadFileToSupabase
 import java.util.Calendar
 
-
-class MainActivity : ComponentActivity() {
-}
+class MainActivity : ComponentActivity() {}
 
 @Composable
 fun MainScreen(navController: NavHostController) {
-
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
-            // scope function  - let apply also run
             uri?.let { imageUri = it }
         }
     )
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+
+    // 파일 URL 가져오기
+    LaunchedEffect(Unit) {
+        getFileUrlFromSupabase("infoImg", "jang/infoImg.jpg") { url ->
+            imageUrl = url
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -91,16 +92,22 @@ fun MainScreen(navController: NavHostController) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp)
-        ){
+                .padding(top = 10.dp),
+            verticalAlignment = Alignment.CenterVertically // 수직 가운데 정렬
+        ) {
             IconButton(onClick = { navController.navigate("calendar") }) {
-                Icon(Icons.Default.ArrowBack , contentDescription = "back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
             }
-            Spacer(modifier = Modifier.width(120.dp))
-            Text(text = "정보", fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.weight(1f)) // "정보" 왼쪽 여백
+            Text(
+                text = "정보",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.weight(1.6f)) // "정보" 오른쪽 여백
         }
 
-        PhotoPickerScreen(imageUri, launcher)
+        PhotoPickerScreen(imageUri, launcher, imageUrl)
         EditInfo(imageUri, setImageUri = { imageUri = it })
     }
 }
@@ -109,11 +116,13 @@ fun MainScreen(navController: NavHostController) {
 fun PhotoPickerScreen(
     imageUri: Uri?,
     launcher: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>,
+    imageUrl: String?
 ) {
     Box {
-        //변수 하나로 틀과 이미지 크기 동시 관리
+        // 변수 하나로 틀과 이미지 크기 동시 관리
         val imgMaxHeight = 240
-        // 기존 이미지
+
+        // 클릭할 수 있는 기본 이미지
         Image(
             painter = painterResource(id = R.drawable.upload_img),
             contentDescription = null,
@@ -125,21 +134,35 @@ fun PhotoPickerScreen(
             contentScale = ContentScale.Fit
         )
 
-        // 선택된 이미지 (겹치는 이미지)
-        Image(
-            painter = rememberImagePainter(imageUri), // selectedImagePainter는 선택된 이미지를 로드하는 Painter여야 합니다.
-            contentDescription = null,
-            modifier = Modifier
-                .width((imgMaxHeight - 30).dp)
-                .height((imgMaxHeight - 30).dp)
-//                .height((ImgMaxHegight - 20).dp)
-                .padding(start = 15.dp, end = 15.dp, top = 5.dp, bottom = 5.dp)
-                .clip(RoundedCornerShape(0.dp))
-                .align(Alignment.Center), // 이미지를 가운데 정렬하여 겹치게 합니다.
-            contentScale = ContentScale.Crop
-        )
+        // 선택된 이미지 또는 불러온 이미지 (겹치는 이미지)
+        if (imageUri != null) {
+            Image(
+                painter = rememberAsyncImagePainter(imageUri),
+                contentDescription = null,
+                modifier = Modifier
+                    .width((imgMaxHeight - 30).dp)
+                    .height((imgMaxHeight - 30).dp)
+                    .padding(start = 15.dp, end = 15.dp, top = 5.dp, bottom = 5.dp)
+                    .clip(RoundedCornerShape(0.dp))
+                    .align(Alignment.Center), // 이미지를 가운데 정렬하여 겹치게 합니다.
+                contentScale = ContentScale.Crop
+            )
+        } else if (imageUrl != null) {
+            Image(
+                painter = rememberAsyncImagePainter(imageUrl),
+                contentDescription = null,
+                modifier = Modifier
+                    .width((imgMaxHeight - 30).dp)
+                    .height((imgMaxHeight - 30).dp)
+                    .padding(start = 15.dp, end = 15.dp, top = 5.dp, bottom = 5.dp)
+                    .clip(RoundedCornerShape(0.dp))
+                    .align(Alignment.Center), // 이미지를 가운데 정렬하여 겹치게 합니다.
+                contentScale = ContentScale.Crop
+            )
+        }
     }
 }
+
 
 //SAVE
 @Composable
@@ -180,7 +203,38 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
         DateInputs(yearState, monthState, dayState)
     }
 
-    SubmitBtn(context, petTypeState, nameState, yearState, monthState, dayState, setImageUri)
+    SubmitBtn(
+        context,
+        petTypeState,
+        nameState,
+        yearState,
+        monthState,
+        dayState,
+        imageUri,
+        setImageUri
+    )
+}
+
+fun createDatePickerDialog(
+    context: Context,
+    yearState: MutableState<String>,
+    monthState: MutableState<String>,
+    dayState: MutableState<String>,
+): DatePickerDialog {
+    val calendar = Calendar.getInstance()
+    val year = calendar.get(Calendar.YEAR)
+    val month = calendar.get(Calendar.MONTH)
+    val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+    return DatePickerDialog(
+        context,
+        { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
+            yearState.value = selectedYear.toString()
+            monthState.value = (selectedMonth + 1).toString()
+            dayState.value = selectedDay.toString()
+        },
+        year, month, day
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -190,10 +244,6 @@ fun PetTypeInput(petTypeState: MutableState<String>) {
         value = petTypeState.value,
         onValueChange = { petTypeState.value = it },
         label = { Text("반려 파트너 종류") },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = Blue,
-            unfocusedBorderColor = Blue
-        )
     )
 }
 
@@ -203,7 +253,7 @@ fun NameInput(nameState: MutableState<String>) {
         value = nameState.value,
         onValueChange = { nameState.value = it },
         label = { Text("이름") },
-        modifier = Modifier.padding(bottom = 20.dp)
+        modifier = Modifier.padding(bottom = 10.dp)
     )
 }
 
@@ -244,28 +294,32 @@ fun DateInputs(
     }
 }
 
-fun createDatePickerDialog(
-    context: Context,
+@Serializable
+data class MateInfo(
+    val user: String,
+    val type: String,
+    val name: String,
+    val year: String,
+    val month: String,
+    val day: String,
+)
+
+fun createMateInfo(
+    petTypeState: MutableState<String>,
+    nameState: MutableState<String>,
     yearState: MutableState<String>,
     monthState: MutableState<String>,
     dayState: MutableState<String>,
-): DatePickerDialog {
-    val calendar = Calendar.getInstance()
-    val year = calendar.get(Calendar.YEAR)
-    val month = calendar.get(Calendar.MONTH)
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-    return DatePickerDialog(
-        context,
-        { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
-            yearState.value = selectedYear.toString()
-            monthState.value = (selectedMonth + 1).toString()
-            dayState.value = selectedDay.toString()
-        },
-        year, month, day
+): MateInfo {
+    return MateInfo(
+        user = "jang",
+        type = petTypeState.value,
+        name = nameState.value,
+        year = yearState.value,
+        month = monthState.value,
+        day = dayState.value
     )
 }
-
 
 @Composable
 fun SubmitBtn(
@@ -275,6 +329,7 @@ fun SubmitBtn(
     yearState: MutableState<String>,
     monthState: MutableState<String>,
     dayState: MutableState<String>,
+    imageUri: Uri?,
     setImageUri: (Uri?) -> Unit,
 ) {
     val supabase = createSupabaseClient()
@@ -294,7 +349,8 @@ fun SubmitBtn(
             yearState,
             monthState,
             dayState,
-            insertInfo
+            insertInfo,
+            imageUri,
         )
         Spacer(modifier = Modifier.width(16.dp))
         DeleteButton(
@@ -308,7 +364,6 @@ fun SubmitBtn(
             setImageUri
         )
         Spacer(modifier = Modifier.width(16.dp))
-        UploadImageButton()
     }
 }
 
@@ -322,6 +377,7 @@ fun RegisterButton(
     monthState: MutableState<String>,
     dayState: MutableState<String>,
     insertInfo: MateInfo,
+    imageUri: Uri?
 ) {
     Button(onClick = {
         if (petTypeState.value.isEmpty() || nameState.value.isEmpty() ||
@@ -330,8 +386,33 @@ fun RegisterButton(
             Toast.makeText(context, "정보를 전부 입력해주세요.", Toast.LENGTH_SHORT).show()
         } else {
             CoroutineScope(Dispatchers.IO).launch {
-                supabase.from("mateinfo").insert(insertInfo)
+                val checkData = supabase.from("mateinfo")
+                    .select()
+                    {
+                        filter {
+                            eq("user", "jang")
+                        }
+                    }.decodeAs<List<MateInfo>>()
+
+                if (checkData.isEmpty()) {
+                    // 레코드가 존재하지 않으므로 새로운 레코드 삽입
+                    supabase.from("mateinfo").insert(insertInfo)
+                } else {
+                    // 이미 레코드가 존재하므로 업데이트 수행
+                    supabase.from("mateinfo").update(insertInfo) {
+                        filter {
+                            eq("user", "jang")
+                        }
+                    }
+                }
             }
+
+            if (imageUri != null) {
+                uploadFileToSupabase(context, "infoImg", "jang/infoImg", imageUri)
+            } else {
+//                Toast.makeText(context, "이미지를 선택해주세요.", Toast.LENGTH_SHORT).show()
+            }
+
             Toast.makeText(context, "${nameState.value} 정보가 저장되었어요!", Toast.LENGTH_SHORT).show()
         }
     }) {
@@ -370,54 +451,5 @@ fun DeleteButton(
     }) {
         Text(text = "삭제")
     }
-}
-
-@Composable
-fun UploadImageButton() {
-    Button(onClick = {
-        // 이미지 업로드 로직 추가
-    }) {
-        Text(text = "이미지 업로드")
-    }
-}
-
-fun createSupabaseClient(): SupabaseClient {
-    val supabaseUrl = BuildConfig.API_URL
-    val supabaseKey = BuildConfig.API_KEY
-
-    return createSupabaseClient(
-        supabaseUrl = supabaseUrl,
-        supabaseKey = supabaseKey
-    ) {
-        install(Auth)
-        install(Postgrest)
-    }
-}
-
-@Serializable
-data class MateInfo(
-    val user: String,
-    val type: String,
-    val name: String,
-    val year: String,
-    val month: String,
-    val day: String,
-)
-
-fun createMateInfo(
-    petTypeState: MutableState<String>,
-    nameState: MutableState<String>,
-    yearState: MutableState<String>,
-    monthState: MutableState<String>,
-    dayState: MutableState<String>,
-): MateInfo {
-    return MateInfo(
-        user = "jang",
-        type = petTypeState.value,
-        name = nameState.value,
-        year = yearState.value,
-        month = monthState.value,
-        day = dayState.value
-    )
 }
 

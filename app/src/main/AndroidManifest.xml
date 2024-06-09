@@ -25,6 +25,7 @@
         <activity android:name=".MainActivity"></activity>
         <activity android:name=".LoginActivity"></activity>
         <activity android:name=".DailyDiary"></activity>
+        <activity android:name=".galleryActivity"></activity>
 <!--        <activity android:name=".MainCalenderActivity"></activity>-->
 
     </application>
