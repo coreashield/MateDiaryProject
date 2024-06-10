@@ -1,5 +1,6 @@
 package com.example.matediary
 
+import SupabseClient
 import android.app.DatePickerDialog
 import android.content.Context
 import android.net.Uri
@@ -51,9 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import createSupabaseClient
+import getData
 import getFileUrlFromSupabase
-import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -116,7 +116,7 @@ fun MainScreen(navController: NavHostController) {
 fun PhotoPickerScreen(
     imageUri: Uri?,
     launcher: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>,
-    imageUrl: String?
+    imageUrl: String?,
 ) {
     Box {
         // 변수 하나로 틀과 이미지 크기 동시 관리
@@ -175,15 +175,16 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
     val context = LocalContext.current
     val datePickerDialog = createDatePickerDialog(context, yearState, monthState, dayState)
 
+
     //1번만 이용
     LaunchedEffect(key1 = Unit) {
         CoroutineScope(Dispatchers.IO).launch {
-            if (getData().isNotEmpty()) {
-                petTypeState.value = getData()[0].type
-                nameState.value = getData()[0].name
-                yearState.value = getData()[0].year
-                monthState.value = getData()[0].month
-                dayState.value = getData()[0].day
+            getData().takeIf { it.isNotEmpty() }?.let {
+                petTypeState.value = it[0].type
+                nameState.value = it[0].name
+                yearState.value = it[0].year
+                monthState.value = it[0].month
+                dayState.value = it[0].day
             }
         }
     }
@@ -198,7 +199,6 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
         PetTypeInput(petTypeState)
         Spacer(modifier = Modifier.height(8.dp))
         NameInput(nameState)
-//        Spacer(modifier = Modifier.height(8.dp))
         DatePickerButton(datePickerDialog)
         DateInputs(yearState, monthState, dayState)
     }
@@ -332,7 +332,6 @@ fun SubmitBtn(
     imageUri: Uri?,
     setImageUri: (Uri?) -> Unit,
 ) {
-    val supabase = createSupabaseClient()
     val insertInfo = createMateInfo(petTypeState, nameState, yearState, monthState, dayState)
 
     Row(
@@ -342,8 +341,6 @@ fun SubmitBtn(
         horizontalArrangement = Arrangement.Center
     ) {
         RegisterButton(
-            context,
-            supabase,
             petTypeState,
             nameState,
             yearState,
@@ -354,14 +351,15 @@ fun SubmitBtn(
         )
         Spacer(modifier = Modifier.width(16.dp))
         DeleteButton(
-            context,
-            supabase,
-            petTypeState,
+            resetScreenData = {
+                petTypeState.value = ""
+                nameState.value = ""
+                yearState.value = ""
+                monthState.value = ""
+                dayState.value = ""
+                setImageUri(null)
+            },
             nameState,
-            yearState,
-            monthState,
-            dayState,
-            setImageUri
         )
         Spacer(modifier = Modifier.width(16.dp))
     }
@@ -369,16 +367,16 @@ fun SubmitBtn(
 
 @Composable
 fun RegisterButton(
-    context: Context,
-    supabase: SupabaseClient,
     petTypeState: MutableState<String>,
     nameState: MutableState<String>,
     yearState: MutableState<String>,
     monthState: MutableState<String>,
     dayState: MutableState<String>,
     insertInfo: MateInfo,
-    imageUri: Uri?
+    imageUri: Uri?,
 ) {
+    val context = LocalContext.current
+    val supabase = SupabseClient.client
     Button(onClick = {
         if (petTypeState.value.isEmpty() || nameState.value.isEmpty() ||
             yearState.value.isEmpty() || monthState.value.isEmpty() || dayState.value.isEmpty()
@@ -386,9 +384,10 @@ fun RegisterButton(
             Toast.makeText(context, "정보를 전부 입력해주세요.", Toast.LENGTH_SHORT).show()
         } else {
             CoroutineScope(Dispatchers.IO).launch {
+                //TODO: check upsert
+
                 val checkData = supabase.from("mateinfo")
-                    .select()
-                    {
+                    .select {
                         filter {
                             eq("user", "jang")
                         }
@@ -422,31 +421,13 @@ fun RegisterButton(
 
 @Composable
 fun DeleteButton(
-    context: Context,
-    supabase: SupabaseClient,
-    petTypeState: MutableState<String>,
+    resetScreenData: () -> Unit,
     nameState: MutableState<String>,
-    yearState: MutableState<String>,
-    monthState: MutableState<String>,
-    dayState: MutableState<String>,
-    setImageUri: (Uri?) -> Unit,
 ) {
+    val context = LocalContext.current
     Button(onClick = {
-        CoroutineScope(Dispatchers.IO).launch {
-            supabase.from("mateinfo").delete {
-                filter {
-                    eq("user", "jang")
-                }
-            }
-        }
-        // 화면 초기화
-        petTypeState.value = ""
-        nameState.value = ""
-        yearState.value = ""
-        monthState.value = ""
-        dayState.value = ""
-        setImageUri(null)
-
+        SupabseClient.deleteUserLaunchIO("jang")
+        resetScreenData()
         Toast.makeText(context, "${nameState.value} 정보가 삭제되었어요ㅜㅜ 안녕", Toast.LENGTH_SHORT).show()
     }) {
         Text(text = "삭제")

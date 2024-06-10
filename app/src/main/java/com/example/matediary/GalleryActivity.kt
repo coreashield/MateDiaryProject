@@ -2,112 +2,125 @@ package com.example.matediary
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SelectableDates
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import getFileUrlFromSupabase
+import getImageList
+import io.github.jan.supabase.storage.BucketItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 
-class galleryActivity() : ComponentActivity() {}
+class GalleryActivity() : ComponentActivity() {}
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DatePickerView(navController: NavHostController) {
-    val selectedDate = remember { mutableStateOf("") }
-    val today = Calendar.getInstance()
-
-    var imageUrl by remember { mutableStateOf<String?>(null) }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.verticalScroll(rememberScrollState())) {
-        AndroidView(factory = { context ->
-            android.widget.CalendarView(context).apply {
-                date = today.timeInMillis
-                setOnDateChangeListener { _, year, month, dayOfMonth ->
-                    val date = "$year-${month + 1}-$dayOfMonth"
-                    selectedDate.value = date
-                }
-            }
-        }, modifier = Modifier.padding(top = 20.dp))
-
+fun GalleryView(date: String, navController: NavHostController) {
+    var imageLogs by remember { mutableStateOf<List<BucketItem>>(listOf()) }
+    var selectedImageUrl by remember { mutableStateOf<String?>(null) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Spacer(
             modifier = Modifier.height(
                 32.dp
             )
         )
-
+        val imageUrlsList = remember {
+            mutableStateListOf<String?>()
+        }
+        Text("날짜:$date")
         LaunchedEffect(Unit) {
             CoroutineScope(Dispatchers.IO).launch {
-                val currentDate = selectedDate.value // 현재 선택된 날짜를 가져옴
-                getFileUrlFromSupabase(
-                    bucketName = "album",
-                    fileName = "jang/$currentDate/main.jpg",
-                ) { url ->
-                    imageUrl = url
-                }
-            }
-        }
-
-
-        if(imageUrl != null){
-            val imageCount = 9 // 이미지 수
-            val rows = imageCount / 3 // 3으로 나눈 몫이 행 수
-            for (rowIndex in 0 until rows) {
-                Row {
-                    for (columnIndex in 0 until 3) { // 한 행당 3개의 이미지를 표시
-                        val index = rowIndex * 3 + columnIndex // 이미지 인덱스 계산
-                        Image(
-                            painter = rememberAsyncImagePainter(imageUrl),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(200.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .padding(8.dp), // 이미지 사이의 간격을 조절할 수 있습니다.
-                            contentScale = ContentScale.Crop
-                        )
+                imageLogs = getImageList(bucketName = "album", folderPath = "jang/$date/")
+                val imageNames = imageLogs.map { it.name }
+                imageNames.forEach {
+                    getFileUrlFromSupabase("album", "jang/$date/$it") { url ->
+                        imageUrlsList.add(url)
                     }
                 }
             }
-        }else{
-            Text(text = "저장 된 이미지 없음")
         }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            content = {
+                items(imageUrlsList.chunked(2)) { rowImages ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (rowImages.size == 1) Arrangement.Start else Arrangement.Center
+                    ) {
+                        rowImages.forEach { imageUrl ->
+                            Image(
+                                painter = rememberAsyncImagePainter(imageUrl),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .padding(start = if (rowImages.size == 1) 50.dp else 4.dp) // 조건 추가
+                                    .size(150.dp)
+                                    .clickable {
+                                        selectedImageUrl = imageUrl
+                                    }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(5.dp))
+                    }
+                }
+            }
+        )
+
+    }
+
+// 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
+    selectedImageUrl?.let { imageUrl ->
+        EnlargedImageView(
+            imageUrl = imageUrl,
+            onClose = { selectedImageUrl = null }
+            // 닫기 버튼을 클릭하면 selectedImageUrl을 null로 설정하여 EnlargedImageView를 닫습니다.
+        )
     }
 }
 
-private fun convertMillisToDate(millis: Long): String {
-    val formatter = SimpleDateFormat("yyyy-M-d")
-    return formatter.format(Date(millis))
+@Composable
+fun EnlargedImageView(imageUrl: String, onClose: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(imageUrl),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
+            contentScale = ContentScale.Fit
+        )
+    }
 }
-

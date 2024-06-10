@@ -1,5 +1,6 @@
 package com.example.matediary
 
+import DiarygGetData
 import ImageItem
 import android.net.Uri
 import android.widget.Toast
@@ -49,9 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import createSupabaseClient
 import getFileUrlFromSupabase
-import getImageList
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
@@ -59,8 +58,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import uploadFileToSupabase
-import java.text.SimpleDateFormat
-import java.util.Calendar
 
 class DailyDiary : ComponentActivity() {}
 
@@ -87,12 +84,11 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
             diaryLogs = logs
         }
 
-        // 대표 이미지
+        // 일기 대표 이미지
         val fileName = "jang/$date/main.jpg"
         getFileUrlFromSupabase("album", fileName) { url ->
             imageUrl = url
         }
-//        imageList = getImageList(folderPath = "jang/$date")
     }
 
     // DB 일기 데이터 정보
@@ -269,40 +265,7 @@ fun createDiaryLog(
     )
 }
 
-suspend fun DiarygGetData(date: String?): List<DiaryLog> {
-    val supabase = createSupabaseClient()
 
-    // yyyyMMdd 형식으로 변환
-    val formattedDate = date?.let {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd") // 기존 형식
-        val outputFormat = SimpleDateFormat("yyyyMMdd") // 원하는 형식
-        val parsedDate = inputFormat.parse(it)
-        outputFormat.format(parsedDate)
-    }
-
-    val nextDate = formattedDate?.let {
-        val sdf = SimpleDateFormat("yyyyMMdd")
-        val calendar = Calendar.getInstance()
-        calendar.time = sdf.parse(it)!!
-        calendar.add(Calendar.DATE, 1)
-        sdf.format(calendar.time)
-    }
-
-    val result = supabase.from("DailyLog")
-//        .select(columns = Columns.list("diary"))
-        .select()
-        {
-            filter {
-                and {
-                    eq("user", "jang")
-                    DiaryLog::created_at eq formattedDate
-                    DiaryLog::created_at lt nextDate
-                }
-            }
-        }.decodeAs<List<DiaryLog>>()
-
-    return result
-}
 
 
 @Composable
