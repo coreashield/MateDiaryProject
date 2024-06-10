@@ -17,17 +17,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Card
+import androidx.compose.material.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.ElevatedButton
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,9 +47,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -61,6 +63,8 @@ import getFileUrlFromSupabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.Period
 import java.util.Calendar
 
 class MainCalenderActivity : ComponentActivity() {
@@ -75,17 +79,18 @@ class MainCalenderActivity : ComponentActivity() {
 }
 
 object CardDataHolder {
-    val defaultCardData = CardData(
+    val defaultCardData = CardPofileData(
         imageUri = "",
         imageDescription = "",
         name = "",
+        age = 0,
         description = ""
     )
 }
 
+
 @Composable
 fun MainCalenderView(navController: NavHostController) {
-    var mateName by remember { mutableStateOf("") }
     var cardData by remember { mutableStateOf(CardDataHolder.defaultCardData) }
     var imageUrl by remember { mutableStateOf("") }
 
@@ -96,13 +101,18 @@ fun MainCalenderView(navController: NavHostController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         LaunchedEffect(key1 = Unit) {
+
             CoroutineScope(Dispatchers.IO).launch {
                 getData().takeIf { it.isNotEmpty() }?.let {
-                    mateName = it[0].name
-                    cardData = CardData(
+
+                    val age =
+                        calculateAge(it[0].year.toInt(), it[0].month.toInt(), it[0].day.toInt())
+
+                    cardData = CardPofileData(
                         imageUri = "", // 필요한 경우 여기에 값을 넣습니다.
                         imageDescription = it[0].name,
-                        name = it[0].name,
+                        name = "이름 : ${it[0].name}",
+                        age = age,
                         description = "생일 : ${it[0].year}년 ${it[0].month}월 ${it[0].day}일"
                     )
                 }
@@ -117,7 +127,7 @@ fun MainCalenderView(navController: NavHostController) {
 
 //        Spacer(modifier = Modifier.height(15.dp))
         Column(verticalArrangement = Arrangement.Center) {
-            CardItem(cardData)
+            CardProfileItem(cardData)
             CalendarView(navController)
         }
     }
@@ -146,7 +156,7 @@ fun CalendarView(navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(desiredHeight),
-//                .padding(8.dp)
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             LaunchedEffect(selectedDate.value) {
                 if (selectedDate.value.isNotEmpty()) {
@@ -161,7 +171,6 @@ fun CalendarView(navController: NavController) {
                 CalendarView(context).apply {
                     val today = Calendar.getInstance()
                     date = today.timeInMillis
-
                     setOnDateChangeListener { _, year, month, dayOfMonth ->
                         val date = "$year-${month + 1}-$dayOfMonth"
                         selectedDate.value = date
@@ -173,12 +182,14 @@ fun CalendarView(navController: NavController) {
 
             //날짜를 클릭했을 때만 버튼 활성화
             val diaries: List<String>? = diaryLogText?.map { it.diary }
-            if (diaries != null) {
-                MoveActivity(navController, selectedDate.value)
-                DiaryTable(diaries)
-            }
-            Column(modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Bottom){
+
+//                MoveActivity(navController, selectedDate.value)
+            MyCircularDropdownMenu(navController,selectedDate.value)
+            DiaryTable(diaries)
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Bottom
+            ) {
                 BottomNavigationButtons(navController)
             }
 
@@ -212,11 +223,6 @@ fun Navigator() {
             val date = backStackEntry.arguments?.getString("date")
             DiaryScreen(date, navController, supabase)
         }
-
-        composable("diary") { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date")
-            DiaryScreen(date, navController, supabase)
-        }
     }
 }
 
@@ -225,7 +231,6 @@ fun Navigator() {
 fun BottomNavigationButtons(navController: NavController) {
     val items = listOf(
         Screen.Home,
-//        Screen.Gallery,
         Screen.Settings
     )
 
@@ -245,7 +250,6 @@ fun BottomNavigationButtons(navController: NavController) {
                             Icons.Default.AccountCircle,
                             contentDescription = null
                         )
-
                         Screen.Settings -> Icon(Icons.Default.AccountBox, contentDescription = null)
                     }
                 },
@@ -269,80 +273,22 @@ sealed class Screen(val route: String, val title: String) {
 
 @Composable
 fun DiaryTable(diaries: List<String>?) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row {
-            Text(
-                text = "번호",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .padding(end = 16.dp),
-            )
-            Text(
-                text = "일기 내용",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .padding(start = 16.dp, end = 16.dp),
-            )
-        }
-    }
-
     LazyColumn(
-        // 화면을 가득 채우도록 설정
         modifier = Modifier
-            .height(100.dp)
-            .fillMaxWidth(),
+            .height(200.dp)
+            .padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally // 수평 가운데 정렬
     ) {
-        // 일기 데이터 행 추가
-        diaries?.forEachIndexed { index, diary ->
-            item {
-                // 일기 번호와 내용을 표시
-                LimitedText("\t\t\t\t${index + 1}\t\t\t\t\t\t$diary", 15)
-            }
+        itemsIndexed(diaries ?: emptyList()) { index, diary ->
+            val diaryData = CardDiaryData(
+                imageUri = "", // 이미지 URI를 여기에 넣으세요.
+                diary = diary
+            )
+            CardDiaryItem(diaryData)
         }
     }
 }
 
-@Composable
-fun LimitedText(text: String, maxLength: Int) {
-    val displayedText = if (text.length > maxLength) {
-        text.take(maxLength) + "..." // 최대 길이 초과 시 잘라내고 "..." 추가
-    } else {
-        text // 최대 길이를 초과하지 않으면 원래 텍스트 표시
-    }
-
-    Text(
-        text = displayedText,
-    )
-}
-
-@Composable
-fun MoveActivity(navController: NavController, date: String) {
-    Row(
-        modifier = Modifier
-            .padding(end = 16.dp)
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = date,
-            modifier = Modifier.weight(1F), textAlign = TextAlign.Center)
-        ElevatedButton(onClick = { navController.navigate("diary/$date") },
-            modifier = Modifier.weight(1F)) {
-            Text("일기장")
-        }
-        Spacer(modifier = Modifier.width(10.dp))
-        ElevatedButton(onClick = { navController.navigate("gallery/$date") },
-            modifier = Modifier.weight(1F)) {
-            Text("갤러리")
-        }
-    }
-}
 
 fun todayDate(): String {
     val calendar = Calendar.getInstance()
@@ -353,43 +299,58 @@ fun todayDate(): String {
     }"
 }
 
-data class CardData(
+fun calculateAge(birthYear: Int, birthMonth: Int, birthDay: Int): Int {
+    val birthDate = LocalDate.of(birthYear, birthMonth, birthDay)
+    val currentDate = LocalDate.now()
+    val age = Period.between(birthDate, currentDate).years
+    return age
+}
+
+data class CardPofileData(
     val imageUri: String,
     val imageDescription: String,
     val name: String,
+    val age: Int,
     val description: String,
 )
-
+data class CardDiaryData(
+    val imageUri: String,
+    val diary: String,
+)
 @Composable
-fun CardItem(cardData: CardData) {
-    val color = Color(0x33000000)
-
+fun CardProfileItem(cardData: CardPofileData) {
+    val color = Color(0x33000000) //그레이
     Card(
         elevation = 8.dp,
-//        modifier = Modifier.padding(4.dp),
+        modifier = Modifier.padding(4.dp),
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .padding(8.dp)
+                .padding(16.dp)
                 .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
 
-            ) {
+        ) {
             AsyncImage(
                 model = cardData.imageUri,
                 placeholder = ColorPainter(color), // 이미지가 없을때 넣을 것
-                contentScale = ContentScale.Crop, // 사이즈에 맞지 않은 것은 잘라냄
-                contentDescription = "sleeping cat",
+                contentScale = ContentScale.Crop,
+                contentDescription = "",
                 modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape), // 둥굴게,
+                    .size(72.dp)
+                    .clip(CircleShape)
             )
 
             Spacer(modifier = Modifier.size(8.dp))
-
-            Column {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = cardData.name,
+                )
+                Spacer(modifier = Modifier.size(4.dp))
+
+                Text(
+                    text = "나이 : ${cardData.age.toString()}",
                 )
 
                 Spacer(modifier = Modifier.size(4.dp))
@@ -401,4 +362,87 @@ fun CardItem(cardData: CardData) {
         }
     }
 }
+@Composable
+fun CardDiaryItem(diaryData : CardDiaryData){
+    val color = Color(0x33000000) //그레이
+    Card(
+        elevation = 8.dp,
+        modifier = Modifier.padding(start = 30.dp, end = 30.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(start = 30.dp, end = 30.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
 
+        ) {
+            AsyncImage(
+                model = diaryData.imageUri,
+                placeholder = ColorPainter(color), // 이미지가 없을때 넣을 것
+                contentScale = ContentScale.Crop,
+                contentDescription = "",
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+            )
+
+            Spacer(modifier = Modifier.size(8.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = diaryData.diary,
+                    fontSize = 16.sp,
+                    maxLines = 2
+                )
+            }
+        }
+    }
+}
+@Composable
+fun MyCircularDropdownMenu(navController: NavController, date: String) {
+    var expanded by remember { mutableStateOf(false) }
+    val items = listOf("일기장 이동", "갤러리 이동")
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+//            .padding(end = 72.dp),
+//        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            IconButton(
+                onClick = { expanded = true },
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(color = Color.LightGray, shape = CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = "movePage",
+                    tint = Color.White
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                items.forEachIndexed { index, item ->
+                    DropdownMenuItem(
+                        text = { Text(text = item) },
+                        onClick = {
+                            expanded = false
+                            val route = when (index) {
+                                0 -> "diary/$date"
+                                1 -> "gallery/$date"
+                                else -> return@DropdownMenuItem
+                            }
+                            navController.navigate(route)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}

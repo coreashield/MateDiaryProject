@@ -176,10 +176,12 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
                             // 이미지 업로드
                             imageUri?.let { uri ->
                                 //해당 날짜의 대표 이미지는 main.jpg로 저장
-                                uploadFileToSupabase(
-                                    context, "album",
-                                    "jang/$date/main", uri
-                                )
+//                                uploadFileToSupabase(
+//                                    context, "album",
+//                                    "jang/$date/main", uri
+//                                )
+
+                                uploadFileToSupabase(context, "album", "jang/2024-6-10/main", uri)
                             }
 
                         }
@@ -214,29 +216,6 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
             }
 
-            Column {
-                imageList.chunked(3).forEach { rowImages ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        rowImages.forEach { imageItem ->
-                            val itemUrl =
-                                "https://${BuildConfig.API_URL}.supabase.co/storage/v1/object/public/album/jang/${imageItem.name}"
-//                            Text(imageItem.name)
-                            Image(
-                                painter = rememberAsyncImagePainter(itemUrl),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
 
             IconButton(onClick = { navController.navigate("calendar") }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "back")

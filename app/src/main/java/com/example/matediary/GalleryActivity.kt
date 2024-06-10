@@ -1,5 +1,6 @@
 package com.example.matediary
 
+import android.app.DatePickerDialog
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,8 +15,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.Button
+import androidx.compose.material.Divider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.DateRange
+import androidx.compose.material.icons.rounded.ShoppingCart
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,7 +41,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import getFileUrlFromSupabase
@@ -37,6 +55,7 @@ import io.github.jan.supabase.storage.BucketItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class GalleryActivity() : ComponentActivity() {}
 
@@ -44,64 +63,86 @@ class GalleryActivity() : ComponentActivity() {}
 fun GalleryView(date: String, navController: NavHostController) {
     var imageLogs by remember { mutableStateOf<List<BucketItem>>(listOf()) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
+    val yearState = remember { mutableStateOf("") }
+    val monthState = remember { mutableStateOf("") }
+    val dayState = remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val datePickerDialog = createDatePickerDialog(context, yearState, monthState, dayState)
+    var selectedDate by remember { mutableStateOf(date) }
+
     Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(end = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(
-            modifier = Modifier.height(
-                32.dp
-            )
-        )
         val imageUrlsList = remember {
             mutableStateListOf<String?>()
         }
-        Text("날짜:$date")
-        LaunchedEffect(Unit) {
+
+        // selectedDate가 변경될 때 이미지를 다시 가져오기
+        LaunchedEffect(selectedDate) {
+            imageUrlsList.clear() // 이미지 목록 초기화
             CoroutineScope(Dispatchers.IO).launch {
-                imageLogs = getImageList(bucketName = "album", folderPath = "jang/$date/")
+                imageLogs = getImageList(bucketName = "album", folderPath = "jang/$selectedDate/")
                 val imageNames = imageLogs.map { it.name }
                 imageNames.forEach {
-                    getFileUrlFromSupabase("album", "jang/$date/$it") { url ->
+                    getFileUrlFromSupabase("album", "jang/$selectedDate/$it") { url ->
                         imageUrlsList.add(url)
                     }
                 }
             }
         }
 
+        // 날짜 상태가 변경될 때 selectedDate를 업데이트
+        LaunchedEffect(yearState.value, monthState.value, dayState.value) {
+            if (yearState.value.isNotEmpty() && monthState.value.isNotEmpty() && dayState.value.isNotEmpty()) {
+                selectedDate = "${yearState.value}-${monthState.value}-${dayState.value}"
+            }
+        }
+
+//        Text(text = selectedDate)
+        HeaderMenu(selectedDate, navController,datePickerDialog)
+        Divider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             content = {
-                items(imageUrlsList.chunked(2)) { rowImages ->
+                items(imageUrlsList.chunked(3)) { rowImages ->
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (rowImages.size == 1) Arrangement.Start else Arrangement.Center
+                        horizontalArrangement = Arrangement.Start,
                     ) {
                         rowImages.forEach { imageUrl ->
                             Image(
                                 painter = rememberAsyncImagePainter(imageUrl),
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .padding(start = if (rowImages.size == 1) 50.dp else 4.dp) // 조건 추가
-                                    .size(150.dp)
+                                    .padding(4.dp)
+                                    .size(128.dp)
+                                    .align(Alignment.CenterVertically)
                                     .clickable {
                                         selectedImageUrl = imageUrl
-                                    }
+                                    },
+                                contentScale = ContentScale.FillBounds
                             )
                         }
-                        Spacer(modifier = Modifier.height(5.dp))
+
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         )
-
     }
 
-// 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
+    // 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
     selectedImageUrl?.let { imageUrl ->
         EnlargedImageView(
             imageUrl = imageUrl,
             onClose = { selectedImageUrl = null }
-            // 닫기 버튼을 클릭하면 selectedImageUrl을 null로 설정하여 EnlargedImageView를 닫습니다.
         )
     }
 }
@@ -122,5 +163,55 @@ fun EnlargedImageView(imageUrl: String, onClose: () -> Unit) {
                 .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
             contentScale = ContentScale.Fit
         )
+    }
+}
+
+@Composable
+fun HeaderMenu(date: String, navController: NavHostController,datePickerDialog: DatePickerDialog) {
+    var selectedDate by remember { mutableStateOf(date) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .padding(4.dp),
+//        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.Start
+    ) {
+        IconButton(onClick = { navController.navigate("calendar") }) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "back",
+                Modifier
+                    .padding(start = 8.dp),
+            )
+        }
+        Text(
+            text = "뒤로",
+            fontSize = 16.sp,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+        )
+
+        Icon(
+            Icons.Rounded.DateRange,
+            contentDescription = "CalenderIcon",
+            modifier = Modifier
+                .padding(start = 80.dp)
+                .align(Alignment.CenterVertically)
+        )
+
+        Text(
+            text = date,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .padding(end = 96.dp)
+                .clickable {
+                    datePickerDialog.show()
+                }
+        )
+
     }
 }

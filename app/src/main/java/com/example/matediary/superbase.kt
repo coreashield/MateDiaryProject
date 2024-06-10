@@ -1,3 +1,5 @@
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -78,33 +80,24 @@ fun getFileUrlFromSupabase(
 fun uploadFileToSupabase(context: Context, bucketName: String, fileName: String, imageUri: Uri) {
     val supabase = SupabseClient.client
     val storage = supabase.storage
-    val bucket = storage.from("album")
-    val uniqueFileName = "${System.currentTimeMillis()}"
-    val saveFilename = "$fileName.jpg"
-    val changeFilename = "${fileName}$uniqueFileName.jpg"
 
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            if (saveFilename.contains("main.jpg")) {
-                // 일기 작성할 때 해당 날짜의 대표 이미지. 이전 대표 이미지는 이름만 변경
-                bucket.move(from = saveFilename, to = changeFilename)
-            } else {
-                // 대표이미지 변경할 때 사용, 이전 이미지는 삭제
-                storage[bucketName].delete(saveFilename)
-            }
-
             context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
                 val bytes = inputStream.readBytes()
                 // 새로운 파일 업로드
                 storage[bucketName].upload("$fileName.jpg", bytes, true)
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(context, "이미지가 성공적으로 업로드되었습니다!", Toast.LENGTH_SHORT).show()
-//                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "이미지가 성공적으로 업로드되었습니다!", Toast.LENGTH_SHORT).show()
+                }
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
+//                Toast.makeText(context, "$bucketName ,  $fileName , $imageUri ", Toast.LENGTH_SHORT)
                 Toast.makeText(context, "이미지 업로드 중 오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT)
                     .show()
+                val errorMessage = "이미지 업로드 중 오류가 발생했습니다: ${e.message}"
+                copyToClipboard(context,errorMessage)
             }
         }
     }
@@ -168,3 +161,8 @@ suspend fun DiarygGetData(date: String?): List<DiaryLog> {
     return result
 }
 
+fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("Copied Text", text)
+    clipboard.setPrimaryClip(clip)
+}
