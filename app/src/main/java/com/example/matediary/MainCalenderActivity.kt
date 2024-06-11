@@ -20,18 +20,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Card
-import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme.colors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.rounded.AccountBox
+import androidx.compose.material.icons.rounded.Create
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -169,6 +170,7 @@ fun CalendarView(navController: NavController) {
             AndroidView(factory = { context ->
                 android.widget.CalendarView(context).apply {
                     val today = Calendar.getInstance()
+
                     date = today.timeInMillis
                     setOnDateChangeListener { _, year, month, dayOfMonth ->
                         val date = "$year-${month + 1}-$dayOfMonth"
@@ -176,20 +178,52 @@ fun CalendarView(navController: NavController) {
                     }
                 }
             })
-            MyCircularDropdownMenu(navController, selectedDate.value)
 
             val diaries: List<String>? = diaryLogText?.map { it.diary }
 
-            DiaryTable(diaries, selectedDate.value, navController)
-            Column(
+            Box(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Bottom
+                contentAlignment = Alignment.BottomCenter // 내용물을 아래 중앙에 정렬합니다.
             ) {
-                BottomNavigationButtons(navController)
-            }
+                Column(){
+                    DiaryTable(diaries, selectedDate.value, navController)
+                    BottomNavigationButtons(navController)
+                }
 
+                Column(Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 64.dp, end = 24.dp),
+                    horizontalAlignment = Alignment.End){
+                    SmallFloatingActionButton(
+                        onClick = { navController.navigate("diary/${selectedDate.value}")},
+                        containerColor = colors.secondaryVariant,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Create,
+                            contentDescription = "",
+                            tint = Color.White,
+                        )
+                    }
+
+                    SmallFloatingActionButton(
+                        onClick = {  navController.navigate("gallery/${selectedDate.value}")},
+                        containerColor = colors.secondaryVariant,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AccountBox,
+                            contentDescription = "",
+                            tint = Color.White,
+                        )
+                    }
+
+                }
+
+            }
         }
     }
+
 }
 
 
@@ -400,7 +434,7 @@ fun CardDiaryItem(diaryData: CardDiaryData, navController: NavController) {
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 30.dp, end = 30.dp)
+                .padding(start = 10.dp, end = 50.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -424,62 +458,6 @@ fun CardDiaryItem(diaryData: CardDiaryData, navController: NavController) {
                     maxLines = 2
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun MyCircularDropdownMenu(navController: NavController, date: String) {
-    var expanded by remember { mutableStateOf(false) }
-    val items = listOf("일기장 이동", "갤러리 이동")
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box{
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 56.dp),
-                horizontalArrangement = Arrangement.Start){
-                IconButton(
-                    onClick = { expanded = true },
-                    modifier = Modifier
-                        .size(16.dp)
-                        .background(
-                            color = Color.White,
-                        ),
-                ) {
-                    Icon(
-                        modifier = Modifier
-                            .size(80.dp),
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = "movePage",
-                        tint = Color.Black
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                ) {
-                    items.forEachIndexed { index, item ->
-                        DropdownMenuItem(
-                            text = { Text(text = item) },
-                            onClick = {
-                                expanded = false
-                                val route = when (index) {
-                                    0 -> "diary/$date"
-                                    1 -> "gallery/$date"
-                                    else -> return@DropdownMenuItem
-                                }
-                                navController.navigate(route)
-                            }
-                        )
-                    }
-                }
-            }
-
         }
     }
 }

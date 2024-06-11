@@ -15,20 +15,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.Button
 import androidx.compose.material.Divider
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.DateRange
-import androidx.compose.material.icons.rounded.ShoppingCart
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,8 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +50,6 @@ import io.github.jan.supabase.storage.BucketItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 class GalleryActivity() : ComponentActivity() {}
 
@@ -102,40 +96,61 @@ fun GalleryView(date: String, navController: NavHostController) {
         }
 
 //        Text(text = selectedDate)
-        HeaderMenu(selectedDate, navController,datePickerDialog)
+        HeaderMenu(selectedDate, navController, datePickerDialog)
         Divider(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         )
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            content = {
-                items(imageUrlsList.chunked(3)) { rowImages ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Start,
-                    ) {
-                        rowImages.forEach { imageUrl ->
-                            Image(
-                                painter = rememberAsyncImagePainter(imageUrl),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .size(128.dp)
-                                    .align(Alignment.CenterVertically)
-                                    .clickable {
-                                        selectedImageUrl = imageUrl
-                                    },
-                                contentScale = ContentScale.FillBounds
-                            )
-                        }
+        Box() {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                content = {
+                    items(imageUrlsList.chunked(3)) { rowImages ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
+                        ) {
+                            rowImages.forEach { imageUrl ->
+                                Image(
+                                    painter = rememberAsyncImagePainter(imageUrl),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp)
+                                        .size(104.dp)
+                                        .align(Alignment.CenterVertically)
+                                        .clickable {
+                                            selectedImageUrl = imageUrl
+                                        },
+                                    contentScale = ContentScale.FillBounds
+                                )
+                            }
 
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            )
+            Column(Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+                verticalArrangement = Arrangement.Bottom,
+                horizontalAlignment = Alignment.End) {
+                SmallFloatingActionButton(
+                    onClick = {
+                        //OnClick Method
+                    },
+                    containerColor = MaterialTheme.colors.secondary,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AddCircle,
+                        contentDescription = "Add FAB",
+                        tint = Color.White,
+                    )
                 }
             }
-        )
+        }
+
     }
 
     // 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
@@ -167,9 +182,7 @@ fun EnlargedImageView(imageUrl: String, onClose: () -> Unit) {
 }
 
 @Composable
-fun HeaderMenu(date: String, navController: NavHostController,datePickerDialog: DatePickerDialog) {
-    var selectedDate by remember { mutableStateOf(date) }
-
+fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog: DatePickerDialog) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,7 +196,7 @@ fun HeaderMenu(date: String, navController: NavHostController,datePickerDialog: 
                 Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "back",
                 Modifier
-                    .padding(start = 8.dp),
+                    .padding(start = 4.dp),
             )
         }
         Text(
@@ -191,14 +204,18 @@ fun HeaderMenu(date: String, navController: NavHostController,datePickerDialog: 
             fontSize = 16.sp,
             modifier = Modifier
                 .align(Alignment.CenterVertically)
+                .padding(end = 10.dp)
         )
 
         Icon(
             Icons.Rounded.DateRange,
             contentDescription = "CalenderIcon",
             modifier = Modifier
-                .padding(start = 80.dp)
+                .padding(start = 64.dp)
                 .align(Alignment.CenterVertically)
+                .clickable {
+                    datePickerDialog.show()
+                }
         )
 
         Text(
@@ -206,8 +223,9 @@ fun HeaderMenu(date: String, navController: NavHostController,datePickerDialog: 
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
+                .fillMaxWidth()
                 .align(Alignment.CenterVertically)
-                .padding(end = 96.dp)
+                .padding(end = 72.dp)
                 .clickable {
                     datePickerDialog.show()
                 }
