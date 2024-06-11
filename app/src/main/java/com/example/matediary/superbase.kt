@@ -35,16 +35,22 @@ object SupabseClient {
     }
 
 
-    fun deleteUserLaunchIO(name: String) {
+    fun deleteUserLaunchIO(columnName:String, name: String,table: String) {
         CoroutineScope(Dispatchers.IO).launch {
-            client.from("mateinfo").delete {
+            client.from(table).delete {
                 filter {
-                    eq("user", name)
+                    eq(columnName, name)
                 }
             }
         }
     }
 
+    fun deleteFileFromSuperbaseLaunchIO(bucketName: String, fileName: String){
+        val storage = supabase.storage
+        CoroutineScope(Dispatchers.IO).launch {
+            storage[bucketName].delete(fileName)
+        }
+    }
     fun getFileUrl(
         bucketName: String,
         fileName: String,
@@ -102,6 +108,7 @@ fun uploadFileToSupabase(context: Context, bucketName: String, fileName: String,
         }
     }
 }
+
 
 data class ImageItem(val name: String, var url: String? = null)
 

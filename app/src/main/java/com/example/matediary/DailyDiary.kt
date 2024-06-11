@@ -2,6 +2,7 @@ package com.example.matediary
 
 import DiarygGetData
 import ImageItem
+import SupabseClient.deleteFileFromSuperbaseLaunchIO
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,12 +64,18 @@ import uploadFileToSupabase
 class DailyDiary : ComponentActivity() {}
 
 @Composable
-fun DiaryScreen(date: String?, navController: NavHostController, supabase: SupabaseClient) {
+fun DiaryScreen(
+    date: String?,
+    diary: String,
+    navController: NavHostController,
+    supabase: SupabaseClient,
+) {
+
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var imageUrl by remember { mutableStateOf<String?>(null) }
-    var diaryData by remember { mutableStateOf("") }
-    var diaryLogs by remember { mutableStateOf(emptyList<DiaryLog>()) }
+    var diaryData by remember { mutableStateOf(diary) }
     var imageList by remember { mutableStateOf(emptyList<ImageItem>()) }
+    var diaryLogs by remember { mutableStateOf(emptyList<DiaryLog>()) }
 
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -76,14 +84,21 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
             uri?.let { imageUri = it }
         }
     )
+
     // 선택된 날짜에 일기 데이터 요청
     LaunchedEffect(key1 = Unit) {
+
         CoroutineScope(Dispatchers.IO).launch {
             val logs = DiarygGetData(date)
-            diaryData = logs.firstOrNull()?.diary ?: ""
+            //넘긴 diary값이 있으면 db값 확인, 없으면 diary값으로
+            if (diary == "") {
+                diaryData = logs.firstOrNull()?.diary ?: ""
+            } else {
+                diaryData = diary
+            }
             diaryLogs = logs
         }
-
+        
         // 일기 대표 이미지
         val fileName = "jang/$date/main.jpg"
         getFileUrlFromSupabase("album", fileName) { url ->
@@ -109,17 +124,31 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            IconButton(onClick = { navController.navigate("calendar") }) {
+            IconButton(
+                onClick = { navController.navigate("calendar") },
+                modifier = Modifier
+                    .weight(1F)
+                    .padding(end = 80.dp)
+            ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
             Text(
-                text = "$date 일기",
-                fontSize = 25.sp,
-                fontWeight = FontWeight.Bold
+                text = "오늘의 일기",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontStyle = FontStyle.Italic,
+                color = Color.DarkGray,
+                modifier = Modifier.weight(1F),
+
+                )
+            Text(
+                text = date.toString(),
+                modifier = Modifier
+                    .weight(1F)
+                    .padding(start = 32.dp)
             )
+
         }
 
         HorizontalDivider(thickness = 3.dp, color = Color.LightGray)
@@ -175,12 +204,6 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
 
                             // 이미지 업로드
                             imageUri?.let { uri ->
-                                //해당 날짜의 대표 이미지는 main.jpg로 저장
-//                                uploadFileToSupabase(
-//                                    context, "album",
-//                                    "jang/$date/main", uri
-//                                )
-
                                 uploadFileToSupabase(context, "album", "jang/2024-6-10/main", uri)
                             }
 
@@ -199,26 +222,35 @@ fun DiaryScreen(date: String?, navController: NavHostController, supabase: Supab
                     CoroutineScope(Dispatchers.IO).launch {
                         supabase.from("DailyLog").delete {
                             filter {
-                                eq("user", "jang")
+                                and {
+                                    eq(column = "user", value = "jang")
+                                    eq(column = "diary", value = diaryData)
+                                }
                             }
                         }
+
+                        deleteFileFromSuperbaseLaunchIO(
+                            fileName = "jang/$date/main.jpg",
+                            bucketName = "album"
+                        )
                     }
-                },
-                modifier = Modifier.weight(1f)
+                    Toast.makeText(context, "$date 일기 삭제 완료", Toast.LENGTH_SHORT).show()
+                    navController.popBackStack()
+                },modifier = Modifier.weight(1f)
             ) {
                 Text(text = "삭제")
             }
             Spacer(modifier = Modifier.weight(0.28f))
         }
 
-        Row(){
-            IconButton(onClick = { navController.navigate("calendar") }) {
+        Row() {
+            IconButton(onClick = { TODO() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
             }
 
 
-            IconButton(onClick = { navController.navigate("calendar") }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "back")
+            IconButton(onClick = { TODO() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "forward")
             }
         }
     }
@@ -245,14 +277,12 @@ fun createDiaryLog(
 }
 
 
-
-
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun ImageUploadIcon(
     imageUri: Uri?,
     launcher: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>,
-    imageUrl: String?
+    imageUrl: String?,
 ) {
     Column {
         IconButton(onClick = {

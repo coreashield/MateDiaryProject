@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.konan.properties.Properties
-import java.io.FileInputStream
 
 
 plugins {
@@ -116,5 +115,9 @@ dependencies {
 
     implementation("androidx.compose.material3:material3:1.3.0-beta02")
     implementation("io.github.jan-tennert.supabase:storage-kt:2.4.3")
+
+    //font
+    implementation ("androidx.compose.ui:ui-text-google-fonts:1.6.1")
+
 
 }

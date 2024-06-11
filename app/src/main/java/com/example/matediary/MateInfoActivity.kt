@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,14 +74,7 @@ fun MainScreen(navController: NavHostController) {
             uri?.let { imageUri = it }
         }
     )
-    var imageUrl by remember { mutableStateOf<String?>(null) }
 
-    // 파일 URL 가져오기
-    LaunchedEffect(Unit) {
-        getFileUrlFromSupabase("infoImg", "jang/infoImg.jpg") { url ->
-            imageUrl = url
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -106,9 +100,17 @@ fun MainScreen(navController: NavHostController) {
             )
             Spacer(modifier = Modifier.weight(1.6f)) // "정보" 오른쪽 여백
         }
+        var imageUrl by remember { mutableStateOf<String?>(null) }
+
+        // 파일 URL 가져오기
+        LaunchedEffect(Unit) {
+            getFileUrlFromSupabase("infoImg", "jang/infoImg.jpg") { url ->
+                imageUrl = url
+            }
+        }
 
         PhotoPickerScreen(imageUri, launcher, imageUrl)
-        EditInfo(imageUri, setImageUri = { imageUri = it })
+        EditInfo(imageUri, setImageUri = { imageUri = it },navController)
     }
 }
 
@@ -123,16 +125,32 @@ fun PhotoPickerScreen(
         val imgMaxHeight = 240
 
         // 클릭할 수 있는 기본 이미지
-        Image(
-            painter = painterResource(id = R.drawable.upload_img),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(imgMaxHeight.dp)
-                .clip(RoundedCornerShape(0.dp))
-                .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            contentScale = ContentScale.Fit
-        )
+
+        Row(){
+            Image(
+                painter = painterResource(id = R.drawable.upload_img),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(imgMaxHeight.dp)
+                    .clip(RoundedCornerShape(0.dp))
+                    .clickable { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                contentScale = ContentScale.Fit
+            )
+
+            IconButton(onClick = {
+                // 이미지를 선택하는 런처를 실행합니다.
+                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AddCircle,
+                    contentDescription = "Localized description",
+                    tint = Color.Black
+                )
+            }
+        }
+
 
         // 선택된 이미지 또는 불러온 이미지 (겹치는 이미지)
         if (imageUri != null) {
@@ -166,7 +184,7 @@ fun PhotoPickerScreen(
 
 //SAVE
 @Composable
-fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
+fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit, navController: NavHostController) {
     val petTypeState = remember { mutableStateOf("") }
     var nameState = remember { mutableStateOf("") }
     val yearState = remember { mutableStateOf("") }
@@ -174,7 +192,6 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
     val dayState = remember { mutableStateOf("") }
     val context = LocalContext.current
     val datePickerDialog = createDatePickerDialog(context, yearState, monthState, dayState)
-
 
     //1번만 이용
     LaunchedEffect(key1 = Unit) {
@@ -204,14 +221,14 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit) {
     }
 
     SubmitBtn(
-        context,
         petTypeState,
         nameState,
         yearState,
         monthState,
         dayState,
         imageUri,
-        setImageUri
+        setImageUri,
+        navController,
     )
 }
 
@@ -323,7 +340,6 @@ fun createMateInfo(
 
 @Composable
 fun SubmitBtn(
-    context: Context,
     petTypeState: MutableState<String>,
     nameState: MutableState<String>,
     yearState: MutableState<String>,
@@ -331,9 +347,9 @@ fun SubmitBtn(
     dayState: MutableState<String>,
     imageUri: Uri?,
     setImageUri: (Uri?) -> Unit,
+    navController: NavHostController,
 ) {
     val insertInfo = createMateInfo(petTypeState, nameState, yearState, monthState, dayState)
-
     Row(
         modifier = Modifier
             .fillMaxWidth(),
@@ -360,6 +376,7 @@ fun SubmitBtn(
                 setImageUri(null)
             },
             nameState,
+            navController,
         )
         Spacer(modifier = Modifier.width(16.dp))
     }
@@ -423,12 +440,25 @@ fun RegisterButton(
 fun DeleteButton(
     resetScreenData: () -> Unit,
     nameState: MutableState<String>,
+    navController: NavHostController
 ) {
     val context = LocalContext.current
     Button(onClick = {
-        SupabseClient.deleteUserLaunchIO("jang")
+        SupabseClient.deleteUserLaunchIO(
+            "user",
+            "jang",
+            "mateinfo"
+        )
+
+        SupabseClient.deleteFileFromSuperbaseLaunchIO(
+            bucketName = "infoImg",
+            fileName = "jang/infoImg.jpg",
+        )
+
         resetScreenData()
-        Toast.makeText(context, "${nameState.value} 정보가 삭제되었어요ㅜㅜ 안녕", Toast.LENGTH_SHORT).show()
+
+        navController.popBackStack()
+        Toast.makeText(context, "${nameState.value} 정보가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
     }) {
         Text(text = "삭제")
     }

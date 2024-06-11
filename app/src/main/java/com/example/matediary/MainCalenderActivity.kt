@@ -3,10 +3,10 @@ package com.example.matediary
 import DiarygGetData
 import SupabseClient
 import android.os.Bundle
-import android.widget.CalendarView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,10 +52,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.AsyncImage
 import com.example.matediary.ui.theme.MateDiaryTheme
 import getData
@@ -63,6 +65,8 @@ import getFileUrlFromSupabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.time.Period
 import java.util.Calendar
@@ -83,7 +87,7 @@ object CardDataHolder {
         imageUri = "",
         imageDescription = "",
         name = "",
-        age = 0,
+        age = "",
         description = ""
     )
 }
@@ -112,7 +116,7 @@ fun MainCalenderView(navController: NavHostController) {
                         imageUri = "", // 필요한 경우 여기에 값을 넣습니다.
                         imageDescription = it[0].name,
                         name = "이름 : ${it[0].name}",
-                        age = age,
+                        age = "나이 : ${age}살",
                         description = "생일 : ${it[0].year}년 ${it[0].month}월 ${it[0].day}일"
                     )
                 }
@@ -124,12 +128,8 @@ fun MainCalenderView(navController: NavHostController) {
                 }
             }
         }
-
-//        Spacer(modifier = Modifier.height(15.dp))
-        Column(verticalArrangement = Arrangement.Center) {
-            CardProfileItem(cardData)
-            CalendarView(navController)
-        }
+        CardProfileItem(cardData)
+        CalendarView(navController)
     }
 }
 
@@ -142,7 +142,7 @@ fun CalendarView(navController: NavController) {
 
     //전체화면 비율에 따라 달력, 네비게이션 크기 수정
     val screenHeight = LocalConfiguration.current.screenHeightDp
-    val desiredHeight = (screenHeight * 0.93).dp
+    val desiredHeight = screenHeight.dp
 
     Box(
         modifier = Modifier
@@ -166,9 +166,8 @@ fun CalendarView(navController: NavController) {
                     }
                 }
             }
-
             AndroidView(factory = { context ->
-                CalendarView(context).apply {
+                android.widget.CalendarView(context).apply {
                     val today = Calendar.getInstance()
                     date = today.timeInMillis
                     setOnDateChangeListener { _, year, month, dayOfMonth ->
@@ -177,15 +176,11 @@ fun CalendarView(navController: NavController) {
                     }
                 }
             })
-            //, modifier = Modifier.padding(top = 20.dp))
+            MyCircularDropdownMenu(navController, selectedDate.value)
 
-
-            //날짜를 클릭했을 때만 버튼 활성화
             val diaries: List<String>? = diaryLogText?.map { it.diary }
 
-//                MoveActivity(navController, selectedDate.value)
-            MyCircularDropdownMenu(navController,selectedDate.value)
-            DiaryTable(diaries)
+            DiaryTable(diaries, selectedDate.value, navController)
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Bottom
@@ -219,9 +214,26 @@ fun Navigator() {
         composable("mateinfo") {
             MainScreen(navController)
         }
+        composable(
+            "diary/{date}?diary={diary}",
+            arguments = listOf(
+                navArgument("date") { type = NavType.StringType },
+                navArgument("diary") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date")
+            val diary = backStackEntry.arguments?.getString("diary") ?: ""
+            DiaryScreen(
+                date = date,
+                diary = diary,
+                navController = navController,
+                supabase = supabase
+            )
+        }
+
         composable("diary/{date}") { backStackEntry ->
             val date = backStackEntry.arguments?.getString("date")
-            DiaryScreen(date, navController, supabase)
+            DiaryScreen(date, "", navController, supabase)
         }
     }
 }
@@ -234,7 +246,6 @@ fun BottomNavigationButtons(navController: NavController) {
         Screen.Settings
     )
 
-    // Bottom Navigation
     BottomNavigation {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
@@ -250,6 +261,7 @@ fun BottomNavigationButtons(navController: NavController) {
                             Icons.Default.AccountCircle,
                             contentDescription = null
                         )
+
                         Screen.Settings -> Icon(Icons.Default.AccountBox, contentDescription = null)
                     }
                 },
@@ -270,21 +282,21 @@ sealed class Screen(val route: String, val title: String) {
     data object Settings : Screen("mateinfo", "정보")
 }
 
-
 @Composable
-fun DiaryTable(diaries: List<String>?) {
+fun DiaryTable(diaries: List<String>?, date: String, navController: NavController) {
     LazyColumn(
         modifier = Modifier
-            .height(200.dp)
-            .padding(top = 16.dp),
+            .height(160.dp)
+            .padding(top = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally // 수평 가운데 정렬
     ) {
-        itemsIndexed(diaries ?: emptyList()) { index, diary ->
+        itemsIndexed(diaries ?: emptyList()) { _, diary ->
             val diaryData = CardDiaryData(
-                imageUri = "", // 이미지 URI를 여기에 넣으세요.
-                diary = diary
+                imageUri = "",
+                diary = diary,
+                date = date,
             )
-            CardDiaryItem(diaryData)
+            CardDiaryItem(diaryData, navController)
         }
     }
 }
@@ -310,64 +322,81 @@ data class CardPofileData(
     val imageUri: String,
     val imageDescription: String,
     val name: String,
-    val age: Int,
+    val age: String,
     val description: String,
 )
+
 data class CardDiaryData(
     val imageUri: String,
     val diary: String,
+    val date: String,
 )
+
 @Composable
 fun CardProfileItem(cardData: CardPofileData) {
     val color = Color(0x33000000) //그레이
+
     Card(
         elevation = 8.dp,
-        modifier = Modifier.padding(4.dp),
+        modifier = Modifier
+            .padding(4.dp)
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center
-
         ) {
-            AsyncImage(
-                model = cardData.imageUri,
-                placeholder = ColorPainter(color), // 이미지가 없을때 넣을 것
-                contentScale = ContentScale.Crop,
-                contentDescription = "",
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-            )
-
-            Spacer(modifier = Modifier.size(8.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = cardData.name,
-                )
-                Spacer(modifier = Modifier.size(4.dp))
-
-                Text(
-                    text = "나이 : ${cardData.age.toString()}",
+            if (cardData.name == "") {
+                Text("등록 된 메이트 정보 없음!")
+            } else {
+                AsyncImage(
+                    model = cardData.imageUri,
+                    placeholder = ColorPainter(color), // 이미지가 없을때
+                    contentScale = ContentScale.Crop,
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
                 )
 
                 Spacer(modifier = Modifier.size(4.dp))
+                Column(
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "${cardData.name} , ${cardData.age}"
+                    )
+                    Spacer(modifier = Modifier.size(4.dp))
 
-                Text(
-                    text = cardData.description,
-                )
+                    Text(
+                        text = cardData.description,
+                    )
+                }
             }
+
         }
     }
 }
+
 @Composable
-fun CardDiaryItem(diaryData : CardDiaryData){
+fun CardDiaryItem(diaryData: CardDiaryData, navController: NavController) {
     val color = Color(0x33000000) //그레이
     Card(
         elevation = 8.dp,
-        modifier = Modifier.padding(start = 30.dp, end = 30.dp),
+        modifier = Modifier
+            .padding(start = 30.dp, end = 30.dp)
+            // 카드 클릭 시, diaryData.date와 diaryData.diary 값을 포함하여 네비게이션
+            .clickable {
+                val encodedDiary =
+                    URLEncoder
+                        .encode(diaryData.diary, StandardCharsets.UTF_8.toString())
+                        .replace("+", " ")
+                navController.navigate("diary/${diaryData.date}?diary=$encodedDiary")
+            },
     ) {
         Row(
             modifier = Modifier
@@ -398,51 +427,59 @@ fun CardDiaryItem(diaryData : CardDiaryData){
         }
     }
 }
+
 @Composable
 fun MyCircularDropdownMenu(navController: NavController, date: String) {
     var expanded by remember { mutableStateOf(false) }
     val items = listOf("일기장 이동", "갤러리 이동")
-
     Column(
         modifier = Modifier
             .fillMaxWidth(),
-//            .padding(end = 72.dp),
-//        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box {
-            IconButton(
-                onClick = { expanded = true },
-                modifier = Modifier
-                    .size(24.dp)
-                    .background(color = Color.LightGray, shape = CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = "movePage",
-                    tint = Color.White
-                )
-            }
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                items.forEachIndexed { index, item ->
-                    DropdownMenuItem(
-                        text = { Text(text = item) },
-                        onClick = {
-                            expanded = false
-                            val route = when (index) {
-                                0 -> "diary/$date"
-                                1 -> "gallery/$date"
-                                else -> return@DropdownMenuItem
-                            }
-                            navController.navigate(route)
-                        }
+        Box{
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 56.dp),
+                horizontalArrangement = Arrangement.Start){
+                IconButton(
+                    onClick = { expanded = true },
+                    modifier = Modifier
+                        .size(16.dp)
+                        .background(
+                            color = Color.White,
+                        ),
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .size(80.dp),
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = "movePage",
+                        tint = Color.Black
                     )
                 }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    items.forEachIndexed { index, item ->
+                        DropdownMenuItem(
+                            text = { Text(text = item) },
+                            onClick = {
+                                expanded = false
+                                val route = when (index) {
+                                    0 -> "diary/$date"
+                                    1 -> "gallery/$date"
+                                    else -> return@DropdownMenuItem
+                                }
+                                navController.navigate(route)
+                            }
+                        )
+                    }
+                }
             }
+
         }
     }
 }
