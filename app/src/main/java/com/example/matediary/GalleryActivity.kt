@@ -1,7 +1,13 @@
 package com.example.matediary
 
+import SupabseClient.deleteFileFromSuperbaseLaunchIO
 import android.app.DatePickerDialog
+import android.content.Context
+import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.wear.compose.material.Button
 import coil.compose.rememberAsyncImagePainter
 import getFileUrlFromSupabase
 import getImageList
@@ -50,11 +57,15 @@ import io.github.jan.supabase.storage.BucketItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import uploadFileToSupabase
 
 class GalleryActivity() : ComponentActivity() {}
 
 @Composable
-fun GalleryView(date: String, navController: NavHostController) {
+fun GalleryView(
+    date: String,
+    navController: NavHostController,
+) {
     var imageLogs by remember { mutableStateOf<List<BucketItem>>(listOf()) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
     val yearState = remember { mutableStateOf("") }
@@ -63,7 +74,11 @@ fun GalleryView(date: String, navController: NavHostController) {
     val context = LocalContext.current
     val datePickerDialog = createDatePickerDialog(context, yearState, monthState, dayState)
     var selectedDate by remember { mutableStateOf(date) }
-
+    val userName = "jang"
+    //현재 시간으로 이미지 저장
+    val currentTime = System.currentTimeMillis()
+    val fileName = "$userName/$date/$currentTime"
+    var LaunchedEffectState by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,7 +90,7 @@ fun GalleryView(date: String, navController: NavHostController) {
         }
 
         // selectedDate가 변경될 때 이미지를 다시 가져오기
-        LaunchedEffect(selectedDate) {
+        LaunchedEffect(selectedDate,LaunchedEffectState) {
             imageUrlsList.clear() // 이미지 목록 초기화
             CoroutineScope(Dispatchers.IO).launch {
                 imageLogs = getImageList(bucketName = "album", folderPath = "jang/$selectedDate/")
@@ -86,16 +101,16 @@ fun GalleryView(date: String, navController: NavHostController) {
                     }
                 }
             }
+            LaunchedEffectState = false
         }
 
         // 날짜 상태가 변경될 때 selectedDate를 업데이트
-        LaunchedEffect(yearState.value, monthState.value, dayState.value) {
-            if (yearState.value.isNotEmpty() && monthState.value.isNotEmpty() && dayState.value.isNotEmpty()) {
-                selectedDate = "${yearState.value}-${monthState.value}-${dayState.value}"
-            }
-        }
+//        LaunchedEffect(yearState.value, monthState.value, dayState.value) {
+//            if (yearState.value.isNotEmpty() && monthState.value.isNotEmpty() && dayState.value.isNotEmpty()) {
+//                selectedDate = "${yearState.value}-${monthState.value}-${dayState.value}"
+//            }
+//        }
 
-//        Text(text = selectedDate)
         HeaderMenu(selectedDate, navController, datePickerDialog)
         Divider(
             modifier = Modifier
@@ -131,39 +146,36 @@ fun GalleryView(date: String, navController: NavHostController) {
                     }
                 }
             )
-            Column(Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.Bottom,
-                horizontalAlignment = Alignment.End) {
-                SmallFloatingActionButton(
-                    onClick = {
-                        //OnClick Method
-                    },
-                    containerColor = MaterialTheme.colors.secondary,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.AddCircle,
-                        contentDescription = "Add FAB",
-                        tint = Color.White,
-                    )
-                }
+                horizontalAlignment = Alignment.End
+            ) {
+                UploadPictureButton("album",fileName,context)
             }
         }
-
     }
 
     // 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
     selectedImageUrl?.let { imageUrl ->
         EnlargedImageView(
             imageUrl = imageUrl,
-            onClose = { selectedImageUrl = null }
+            onClose = { selectedImageUrl = null },
+            fileName = fileName,
         )
+
+        LaunchedEffectState = true
     }
 }
 
 @Composable
-fun EnlargedImageView(imageUrl: String, onClose: () -> Unit) {
+fun EnlargedImageView(
+    imageUrl: String,
+    onClose: () -> Unit,
+    fileName : String,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -178,6 +190,13 @@ fun EnlargedImageView(imageUrl: String, onClose: () -> Unit) {
                 .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
             contentScale = ContentScale.Fit
         )
+        
+        Button(onClick = {
+            deleteFileFromSuperbaseLaunchIO(fileName)
+
+        }) {
+            Text(text = "삭제")
+        }
     }
 }
 
@@ -232,4 +251,33 @@ fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog:
         )
 
     }
+}
+
+@Composable
+fun UploadPictureButton(
+    bucketname: String,
+    filename: String,
+    context: Context,
+    ) {
+    var photopickerImgUri by remember { mutableStateOf<Uri?>(null) }
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let { photopickerImgUri = it }
+        }
+    )
+
+    SmallFloatingActionButton(
+        onClick = {
+            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        },
+        containerColor = MaterialTheme.colors.secondary,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.AddCircle,
+            contentDescription = "Add FAB",
+            tint = Color.White,
+        )
+    }
+    photopickerImgUri?.let { uploadFileToSupabase(context,bucketname,filename, it) }
 }

@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -75,6 +76,8 @@ import java.util.Calendar
 class MainCalenderActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installSplashScreen()
+
         setContent {
             MateDiaryTheme {
                 Navigator()
@@ -185,17 +188,19 @@ fun CalendarView(navController: NavController) {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter // 내용물을 아래 중앙에 정렬합니다.
             ) {
-                Column(){
+                Column() {
                     DiaryTable(diaries, selectedDate.value, navController)
                     BottomNavigationButtons(navController)
                 }
 
-                Column(Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 64.dp, end = 24.dp),
-                    horizontalAlignment = Alignment.End){
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 64.dp, end = 24.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
                     SmallFloatingActionButton(
-                        onClick = { navController.navigate("diary/${selectedDate.value}")},
+                        onClick = { navController.navigate("diary/${selectedDate.value}") },
                         containerColor = colors.secondaryVariant,
                         shape = RoundedCornerShape(12.dp),
                     ) {
@@ -207,7 +212,7 @@ fun CalendarView(navController: NavController) {
                     }
 
                     SmallFloatingActionButton(
-                        onClick = {  navController.navigate("gallery/${selectedDate.value}")},
+                        onClick = { navController.navigate("gallery/${selectedDate.value}") },
                         containerColor = colors.secondaryVariant,
                         shape = RoundedCornerShape(12.dp),
                     ) {
@@ -231,47 +236,52 @@ fun CalendarView(navController: NavController) {
 fun Navigator() {
     val supabase = SupabseClient.client
     val navController = rememberNavController()
-    NavHost(navController, startDestination = "calendar") {
+    var showSplash by remember { mutableStateOf(true) }
 
-        composable("calendar") {
-            MainCalenderView(navController)
-        }
-        composable("gallery") { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date")
-            GalleryView(date.toString(), navController)
-        }
+    if (showSplash) {
+        SplashScreen(onTimeout = { showSplash = false })
+    } else {
+        NavHost(navController, startDestination = "calendar") {
 
-        composable("gallery/{date}") { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date")
-            GalleryView(date.toString(), navController)
-        }
-        composable("mateinfo") {
-            MainScreen(navController)
-        }
-        composable(
-            "diary/{date}?diary={diary}",
-            arguments = listOf(
-                navArgument("date") { type = NavType.StringType },
-                navArgument("diary") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date")
-            val diary = backStackEntry.arguments?.getString("diary") ?: ""
-            DiaryScreen(
-                date = date,
-                diary = diary,
-                navController = navController,
-                supabase = supabase
-            )
-        }
+            composable("calendar") {
+                MainCalenderView(navController)
+            }
+            composable("gallery") { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
+                GalleryView(date.toString(), navController)
+            }
 
-        composable("diary/{date}") { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date")
-            DiaryScreen(date, "", navController, supabase)
+            composable("gallery/{date}") { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
+                GalleryView(date.toString(), navController)
+            }
+            composable("mateinfo") {
+                MainScreen(navController)
+            }
+            composable(
+                "diary/{date}?diary={diary}",
+                arguments = listOf(
+                    navArgument("date") { type = NavType.StringType },
+                    navArgument("diary") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
+                val diary = backStackEntry.arguments?.getString("diary") ?: ""
+                DiaryScreen(
+                    date = date,
+                    diary = diary,
+                    navController = navController,
+                    supabase = supabase
+                )
+            }
+
+            composable("diary/{date}") { backStackEntry ->
+                val date = backStackEntry.arguments?.getString("date")
+                DiaryScreen(date, "", navController, supabase)
+            }
         }
     }
 }
-
 
 @Composable
 fun BottomNavigationButtons(navController: NavController) {

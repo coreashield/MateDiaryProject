@@ -27,7 +27,6 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -204,7 +203,7 @@ fun DiaryScreen(
 
                             // 이미지 업로드
                             imageUri?.let { uri ->
-                                uploadFileToSupabase(context, "album", "jang/2024-6-10/main", uri)
+                                uploadFileToSupabase(context, "album", "jang/$date/main", uri)
                             }
 
                         }
@@ -230,8 +229,7 @@ fun DiaryScreen(
                         }
 
                         deleteFileFromSuperbaseLaunchIO(
-                            fileName = "jang/$date/main.jpg",
-                            bucketName = "album"
+                            fileName = "jang/$date/main.jpg"
                         )
                     }
                     Toast.makeText(context, "$date 일기 삭제 완료", Toast.LENGTH_SHORT).show()
@@ -243,16 +241,16 @@ fun DiaryScreen(
             Spacer(modifier = Modifier.weight(0.28f))
         }
 
-        Row() {
-            IconButton(onClick = { TODO() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-            }
-
-
-            IconButton(onClick = { TODO() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "forward")
-            }
-        }
+//        Row() {
+//            IconButton(onClick = { TODO() }) {
+//                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+//            }
+//
+//
+//            IconButton(onClick = { TODO() }) {
+//                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "forward")
+//            }
+//        }
     }
 }
 
@@ -313,5 +311,3 @@ fun ImageUploadIcon(
         contentScale = ContentScale.Crop
     )
 }
-
-

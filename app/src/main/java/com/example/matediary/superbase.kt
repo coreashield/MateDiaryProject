@@ -35,9 +35,12 @@ object SupabseClient {
     }
 
 
-    fun deleteUserLaunchIO(columnName:String, name: String,table: String) {
+    fun deleteUserLaunchIO(
+        columnName: String,
+        name: String
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
-            client.from(table).delete {
+            client.from("album").delete {
                 filter {
                     eq(columnName, name)
                 }
@@ -45,10 +48,10 @@ object SupabseClient {
         }
     }
 
-    fun deleteFileFromSuperbaseLaunchIO(bucketName: String, fileName: String){
+    fun deleteFileFromSuperbaseLaunchIO(fileName: String){
         val storage = supabase.storage
         CoroutineScope(Dispatchers.IO).launch {
-            storage[bucketName].delete(fileName)
+            storage["album"].delete(fileName)
         }
     }
     fun getFileUrl(

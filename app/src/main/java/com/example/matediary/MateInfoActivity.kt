@@ -446,12 +446,10 @@ fun DeleteButton(
     Button(onClick = {
         SupabseClient.deleteUserLaunchIO(
             "user",
-            "jang",
-            "mateinfo"
+            "jang"
         )
 
         SupabseClient.deleteFileFromSuperbaseLaunchIO(
-            bucketName = "infoImg",
             fileName = "jang/infoImg.jpg",
         )
 

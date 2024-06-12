@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- MateDiary 테마 정의 -->
     <style name="Theme.MateDiary" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- App 테마 정의 -->
+    <style name="Theme.App" parent="@android:style/Theme.DeviceDefault" />
+
+    <!-- 스플래시 스크린 테마 정의 -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- 스플래시 스크린 배경을 검은색으로 설정 -->
+        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <!-- drawable 또는 애니메이션 drawable 추가 -->
+<!--        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_screen</item>-->
+        <!-- 스플래시 스크린 이후의 액티비티에 적용될 테마 설정 -->
+        <item name="postSplashScreenTheme">@style/Theme.MateDiary</item>
+    </style>
+
 </resources>
