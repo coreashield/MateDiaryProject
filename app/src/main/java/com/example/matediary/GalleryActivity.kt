@@ -78,7 +78,8 @@ fun GalleryView(
     //현재 시간으로 이미지 저장
     val currentTime = System.currentTimeMillis()
     val fileName = "$userName/$date/$currentTime"
-    var LaunchedEffectState by remember { mutableStateOf(false) }
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -90,7 +91,7 @@ fun GalleryView(
         }
 
         // selectedDate가 변경될 때 이미지를 다시 가져오기
-        LaunchedEffect(selectedDate,LaunchedEffectState) {
+        LaunchedEffect(selectedDate) {
             imageUrlsList.clear() // 이미지 목록 초기화
             CoroutineScope(Dispatchers.IO).launch {
                 imageLogs = getImageList(bucketName = "album", folderPath = "jang/$selectedDate/")
@@ -101,15 +102,7 @@ fun GalleryView(
                     }
                 }
             }
-            LaunchedEffectState = false
         }
-
-        // 날짜 상태가 변경될 때 selectedDate를 업데이트
-//        LaunchedEffect(yearState.value, monthState.value, dayState.value) {
-//            if (yearState.value.isNotEmpty() && monthState.value.isNotEmpty() && dayState.value.isNotEmpty()) {
-//                selectedDate = "${yearState.value}-${monthState.value}-${dayState.value}"
-//            }
-//        }
 
         HeaderMenu(selectedDate, navController, datePickerDialog)
         Divider(
@@ -153,7 +146,9 @@ fun GalleryView(
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.End
             ) {
-                UploadPictureButton("album",fileName,context)
+                UploadPictureButton("album",fileName,context, onImageUploaded = {
+                    selectedDate = date // Recompose screen by updating selectedDate
+                })
             }
         }
     }
@@ -165,8 +160,6 @@ fun GalleryView(
             onClose = { selectedImageUrl = null },
             fileName = fileName,
         )
-
-        LaunchedEffectState = true
     }
 }
 
@@ -207,7 +200,6 @@ fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog:
             .fillMaxWidth()
             .height(40.dp)
             .padding(4.dp),
-//        verticalAlignment = Alignment.CenterVertically
         horizontalArrangement = Arrangement.Start
     ) {
         IconButton(onClick = { navController.navigate("calendar") }) {
@@ -249,7 +241,6 @@ fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog:
                     datePickerDialog.show()
                 }
         )
-
     }
 }
 
@@ -258,7 +249,8 @@ fun UploadPictureButton(
     bucketname: String,
     filename: String,
     context: Context,
-    ) {
+    onImageUploaded: () -> Unit,
+) {
     var photopickerImgUri by remember { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -280,4 +272,6 @@ fun UploadPictureButton(
         )
     }
     photopickerImgUri?.let { uploadFileToSupabase(context,bucketname,filename, it) }
+    photopickerImgUri = null
+    onImageUploaded()
 }

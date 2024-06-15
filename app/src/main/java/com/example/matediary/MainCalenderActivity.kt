@@ -242,7 +242,6 @@ fun Navigator() {
         SplashScreen(onTimeout = { showSplash = false })
     } else {
         NavHost(navController, startDestination = "calendar") {
-
             composable("calendar") {
                 MainCalenderView(navController)
             }
