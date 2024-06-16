@@ -1,6 +1,6 @@
 package com.example.matediary
 
-import SupabseClient
+import SupabaseClient
 import android.app.DatePickerDialog
 import android.content.Context
 import android.net.Uri
@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import getData
+import getMateData
 import getFileUrlFromSupabase
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
@@ -196,7 +196,7 @@ fun EditInfo(imageUri: Uri?, setImageUri: (Uri?) -> Unit, navController: NavHost
     //1번만 이용
     LaunchedEffect(key1 = Unit) {
         CoroutineScope(Dispatchers.IO).launch {
-            getData().takeIf { it.isNotEmpty() }?.let {
+            getMateData().takeIf { it.isNotEmpty() }?.let {
                 petTypeState.value = it[0].type
                 nameState.value = it[0].name
                 yearState.value = it[0].year
@@ -393,7 +393,7 @@ fun RegisterButton(
     imageUri: Uri?,
 ) {
     val context = LocalContext.current
-    val supabase = SupabseClient.client
+    val supabase = SupabaseClient.client
     Button(onClick = {
         if (petTypeState.value.isEmpty() || nameState.value.isEmpty() ||
             yearState.value.isEmpty() || monthState.value.isEmpty() || dayState.value.isEmpty()
@@ -444,12 +444,12 @@ fun DeleteButton(
 ) {
     val context = LocalContext.current
     Button(onClick = {
-        SupabseClient.deleteUserLaunchIO(
+        SupabaseClient.deleteUserLaunchIO(
             "user",
             "jang"
         )
 
-        SupabseClient.deleteFileFromSuperbaseLaunchIO(
+        SupabaseClient.deleteFileFromSupabaseLaunchIO(
             fileName = "jang/infoImg.jpg",
         )
 

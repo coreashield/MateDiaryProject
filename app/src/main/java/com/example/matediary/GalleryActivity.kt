@@ -1,9 +1,9 @@
 package com.example.matediary
 
-import SupabseClient.deleteFileFromSuperbaseLaunchIO
-import android.app.DatePickerDialog
+import SupabaseClient.deleteFileFromSupabaseLaunchIO
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -23,16 +23,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Divider
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.DateRange
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +63,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import uploadFileToSupabase
+import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 class GalleryActivity() : ComponentActivity() {}
 
@@ -68,17 +81,15 @@ fun GalleryView(
 ) {
     var imageLogs by remember { mutableStateOf<List<BucketItem>>(listOf()) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
-    val yearState = remember { mutableStateOf("") }
-    val monthState = remember { mutableStateOf("") }
-    val dayState = remember { mutableStateOf("") }
-    val context = LocalContext.current
-    val datePickerDialog = createDatePickerDialog(context, yearState, monthState, dayState)
-    var selectedDate by remember { mutableStateOf(date) }
     val userName = "jang"
-    //현재 시간으로 이미지 저장
-    val currentTime = System.currentTimeMillis()
-    val fileName = "$userName/$date/$currentTime"
+    val context = LocalContext.current
 
+    // selectedDate 변수를 remember로 상태로 저장합니다.
+    var selectedDate by remember { mutableStateOf(date) }
+
+    // 현재 시간으로 이미지 저장
+    val currentTime = System.currentTimeMillis()
+    val fileName = "$userName/$selectedDate/$currentTime"
 
     Column(
         modifier = Modifier
@@ -103,14 +114,19 @@ fun GalleryView(
                 }
             }
         }
+        Text(text = selectedDate)
 
-        HeaderMenu(selectedDate, navController, datePickerDialog)
+        // HeaderMenu를 호출할 때 selectedDate를 전달합니다.
+        HeaderMenu(selectedDate, navController) { newDate ->
+            selectedDate = newDate
+        }
+
         Divider(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         )
-        Box() {
+        Box {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 content = {
@@ -133,7 +149,6 @@ fun GalleryView(
                                     contentScale = ContentScale.FillBounds
                                 )
                             }
-
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -146,7 +161,7 @@ fun GalleryView(
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.End
             ) {
-                UploadPictureButton("album",fileName,context, onImageUploaded = {
+                UploadPictureButton("album", fileName, context, onImageUploaded = {
                     selectedDate = date // Recompose screen by updating selectedDate
                 })
             }
@@ -164,37 +179,22 @@ fun GalleryView(
 }
 
 @Composable
-fun EnlargedImageView(
-    imageUrl: String,
-    onClose: () -> Unit,
-    fileName : String,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = rememberAsyncImagePainter(imageUrl),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
-            contentScale = ContentScale.Fit
-        )
-        
-        Button(onClick = {
-            deleteFileFromSuperbaseLaunchIO(fileName)
+fun HeaderMenu(date: String, navController: NavHostController, onDateSelected: (String) -> Unit) {
+    val showDatePicker = remember { mutableStateOf(false) }
 
-        }) {
-            Text(text = "삭제")
+    // 날짜 선택기가 표시되어야 하는지 여부를 결정하는 상태
+    if (showDatePicker.value) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker.value = false },
+            onConfirm = {} // OK 버튼이 눌렸을 때 별도 동작 없음, onDateSelected 콜백에서 처리
+        ) {
+            DatePickerWithDateSelectableDatesSample { selectedDate ->
+                onDateSelected(selectedDate)
+                showDatePicker.value = false
+            }
         }
     }
-}
 
-@Composable
-fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog: DatePickerDialog) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -225,7 +225,7 @@ fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog:
                 .padding(start = 64.dp)
                 .align(Alignment.CenterVertically)
                 .clickable {
-                    datePickerDialog.show()
+                    showDatePicker.value = true
                 }
         )
 
@@ -238,7 +238,7 @@ fun HeaderMenu(date: String, navController: NavHostController, datePickerDialog:
                 .align(Alignment.CenterVertically)
                 .padding(end = 72.dp)
                 .clickable {
-                    datePickerDialog.show()
+                    showDatePicker.value = true
                 }
         )
     }
@@ -271,7 +271,122 @@ fun UploadPictureButton(
             tint = Color.White,
         )
     }
-    photopickerImgUri?.let { uploadFileToSupabase(context,bucketname,filename, it) }
+    photopickerImgUri?.let { uploadFileToSupabase(context, bucketname, filename, it) }
     photopickerImgUri = null
     onImageUploaded()
+}
+
+@Composable
+fun DatePickerDialog(onDismissRequest: () -> Unit, onConfirm: () -> Unit, content: @Composable () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(text = "Select Date")
+        },
+        text = {
+            content()
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm()
+                    onDismissRequest()
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismissRequest
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerWithDateSelectableDatesSample(onDateSelected: (String) -> Unit) {
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            // 일요일과 토요일 선택 불가
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val dayOfWeek =
+                        Instant.ofEpochMilli(utcTimeMillis)
+                            .atZone(ZoneId.of("Asia/Seoul")) // 한국 시간대 적용
+                            .toLocalDate()
+                            .dayOfWeek
+                    dayOfWeek != DayOfWeek.SUNDAY && dayOfWeek != DayOfWeek.SATURDAY
+                } else {
+                    val calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul")) // 한국 시간대 적용
+                    calendar.timeInMillis = utcTimeMillis
+                    calendar[Calendar.DAY_OF_WEEK] != Calendar.SUNDAY &&
+                            calendar[Calendar.DAY_OF_WEEK] != Calendar.SATURDAY
+                }
+            }
+
+            // 2023년 이후의 날짜만 선택 가능
+            override fun isSelectableYear(year: Int): Boolean {
+                return year > 2022
+            }
+        }
+    )
+
+    val selectedDate = datePickerState.selectedDateMillis?.let { millis ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val date = Instant.ofEpochMilli(millis)
+                .atZone(ZoneId.of("Asia/Seoul"))
+                .toLocalDate()
+            date.format(DateTimeFormatter.ofPattern("yyyy-M-d"))
+        } else {
+            val calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul"))
+            calendar.timeInMillis = millis
+            SimpleDateFormat("yyyy-M-d", Locale.getDefault()).format(calendar.time)
+        }
+    } ?: "no selection"
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        DatePicker(state = datePickerState)
+        Text(
+            "Selected date: $selectedDate",
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .clickable {
+                    onDateSelected(selectedDate)
+                }
+        )
+    }
+}
+
+@Composable
+fun EnlargedImageView(
+    imageUrl: String,
+    onClose: () -> Unit,
+    fileName: String,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(imageUrl),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
+            contentScale = ContentScale.Fit
+        )
+
+        Button(onClick = {
+            deleteFileFromSupabaseLaunchIO(fileName)
+
+        }) {
+            Text(text = "삭제")
+        }
+    }
 }

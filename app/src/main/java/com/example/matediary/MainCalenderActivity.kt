@@ -1,7 +1,7 @@
 package com.example.matediary
 
-import DiarygGetData
-import SupabseClient
+import DiaryGetData
+import SupabaseClient
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -62,8 +62,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
 import com.example.matediary.ui.theme.MateDiaryTheme
-import getData
+import com.example.matediary.ui.theme.PhotoAlbumScreen
 import getFileUrlFromSupabase
+import getMateData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -111,7 +112,7 @@ fun MainCalenderView(navController: NavHostController) {
         LaunchedEffect(key1 = Unit) {
 
             CoroutineScope(Dispatchers.IO).launch {
-                getData().takeIf { it.isNotEmpty() }?.let {
+                getMateData().takeIf { it.isNotEmpty() }?.let {
 
                     val age =
                         calculateAge(it[0].year.toInt(), it[0].month.toInt(), it[0].day.toInt())
@@ -165,7 +166,7 @@ fun CalendarView(navController: NavController) {
             LaunchedEffect(selectedDate.value) {
                 if (selectedDate.value.isNotEmpty()) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        val diaryData = DiarygGetData(selectedDate.value)
+                        val diaryData = DiaryGetData(selectedDate.value)
                         diaryLogText = diaryData
                     }
                 }
@@ -183,49 +184,57 @@ fun CalendarView(navController: NavController) {
             })
 
             val diaries: List<String>? = diaryLogText?.map { it.diary }
+            val mainImgPathes: List<String>? = diaryLogText?.map { it.mainIMGpath }
 
+            //일기 데이터 box로 묶기(SmallFloatingActionButton 와 겹칠 수 있어서)
             Box(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter // 내용물을 아래 중앙에 정렬합니다.
+                contentAlignment = Alignment.TopCenter // 내용물을 아래 중앙에 정렬합니다.
             ) {
-                Column() {
-                    DiaryTable(diaries, selectedDate.value, navController)
-                    BottomNavigationButtons(navController)
-                }
+                DiaryTable(diaries, mainImgPathes, selectedDate.value, navController)
 
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 64.dp, end = 24.dp),
-                    horizontalAlignment = Alignment.End
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter // 내용물을 아래 중앙에 정렬합니다.
                 ) {
-                    SmallFloatingActionButton(
-                        onClick = { navController.navigate("diary/${selectedDate.value}") },
-                        containerColor = colors.secondaryVariant,
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Create,
-                            contentDescription = "",
-                            tint = Color.White,
-                        )
-                    }
+                    //화면 맨 아래에 위치할 수 있기 새로운 box로 묶어줌
+                    BottomNavigationButtons(navController)
 
-                    SmallFloatingActionButton(
-                        onClick = { navController.navigate("gallery/${selectedDate.value}") },
-                        containerColor = colors.secondaryVariant,
-                        shape = RoundedCornerShape(12.dp),
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 64.dp, end = 24.dp),
+                        horizontalAlignment = Alignment.End
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AccountBox,
-                            contentDescription = "",
-                            tint = Color.White,
-                        )
+                        SmallFloatingActionButton(
+                            onClick = { navController.navigate("diary/${selectedDate.value}") },
+                            containerColor = colors.secondaryVariant,
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Create,
+                                contentDescription = "",
+                                tint = Color.White,
+                            )
+                        }
+
+                        SmallFloatingActionButton(
+                            onClick = { navController.navigate("gallery/${selectedDate.value}") },
+                            containerColor = colors.secondaryVariant,
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AccountBox,
+                                contentDescription = "",
+                                tint = Color.White,
+                            )
+                        }
+
                     }
 
                 }
-
             }
+
         }
     }
 
@@ -234,7 +243,7 @@ fun CalendarView(navController: NavController) {
 
 @Composable
 fun Navigator() {
-    val supabase = SupabseClient.client
+    val supabase = SupabaseClient.client
     val navController = rememberNavController()
     var showSplash by remember { mutableStateOf(true) }
 
@@ -252,7 +261,8 @@ fun Navigator() {
 
             composable("gallery/{date}") { backStackEntry ->
                 val date = backStackEntry.arguments?.getString("date")
-                GalleryView(date.toString(), navController)
+                date?.let { PhotoAlbumScreen(navController, it) }
+//                GalleryView(date.toString(), navController)
             }
             composable("mateinfo") {
                 MainScreen(navController)
@@ -326,16 +336,22 @@ sealed class Screen(val route: String, val title: String) {
 }
 
 @Composable
-fun DiaryTable(diaries: List<String>?, date: String, navController: NavController) {
+fun DiaryTable(
+    diaries: List<String>?,
+    mainImgPath: List<String>?,
+    date: String,
+    navController: NavController
+) {
     LazyColumn(
         modifier = Modifier
-            .height(160.dp)
+            .height(320.dp)
             .padding(top = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally // 수평 가운데 정렬
+//        horizontalAlignment = Alignment.CenterHorizontally // 수평 가운데 정렬
+        verticalArrangement = Arrangement.Top // 수평 가운데 정렬
     ) {
-        itemsIndexed(diaries ?: emptyList()) { _, diary ->
+        itemsIndexed(diaries ?: emptyList()) { index, diary ->
             val diaryData = CardDiaryData(
-                imageUri = "",
+                imageUri = mainImgPath?.getOrNull(index) ?: "",
                 diary = diary,
                 date = date,
             )
@@ -426,7 +442,10 @@ fun CardProfileItem(cardData: CardPofileData) {
 }
 
 @Composable
-fun CardDiaryItem(diaryData: CardDiaryData, navController: NavController) {
+fun CardDiaryItem(
+    diaryData: CardDiaryData,
+    navController: NavController
+) {
     val color = Color(0x33000000) //그레이
     Card(
         elevation = 8.dp,
@@ -443,19 +462,19 @@ fun CardDiaryItem(diaryData: CardDiaryData, navController: NavController) {
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 10.dp, end = 50.dp)
+                .padding(start = 10.dp, end = 50.dp, bottom = 10.dp, top = 10.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
 
         ) {
             AsyncImage(
-                model = diaryData.imageUri,
+                model = diaryData.imageUri?.takeIf { it.isNotEmpty() } ?: "",
                 placeholder = ColorPainter(color), // 이미지가 없을때 넣을 것
                 contentScale = ContentScale.Crop,
                 contentDescription = "",
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
             )
 

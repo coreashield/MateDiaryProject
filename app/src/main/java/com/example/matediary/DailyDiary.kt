@@ -1,8 +1,8 @@
 package com.example.matediary
 
-import DiarygGetData
+import DiaryGetData
 import ImageItem
-import SupabseClient.deleteFileFromSuperbaseLaunchIO
+import SupabaseClient.deleteFileFromSupabaseLaunchIO
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,9 +84,8 @@ fun DiaryScreen(
 
     // 선택된 날짜에 일기 데이터 요청
     LaunchedEffect(key1 = Unit) {
-
         CoroutineScope(Dispatchers.IO).launch {
-            val logs = DiarygGetData(date)
+            val logs = DiaryGetData(date)
             //넘긴 diary값이 있으면 db값 확인, 없으면 diary값으로
             if (diary == "") {
                 diaryData = logs.firstOrNull()?.diary ?: ""
@@ -97,7 +94,8 @@ fun DiaryScreen(
             }
             diaryLogs = logs
         }
-        
+
+
         // 일기 대표 이미지
         val fileName = "jang/$date/main.jpg"
         getFileUrlFromSupabase("album", fileName) { url ->
@@ -109,7 +107,8 @@ fun DiaryScreen(
     val insertInfo = createDiaryLog(
         inputUser = "jang",
         inputdiary = diaryData,
-        inputCreated_at = date.toString()
+        inputCreated_at = date.toString(),
+        input_mainIMGpath  = "",
     )
 
     Column(
@@ -155,29 +154,28 @@ fun DiaryScreen(
         ImageUploadIcon(imageUri, launcher, imageUrl)
         Spacer(modifier = Modifier.height(20.dp))
 
-        Column {
-            imageList.chunked(3).forEach { rowImages ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    rowImages.forEach { imageItem ->
-                        val itemUrl =
-                            "https://${BuildConfig.API_URL}.supabase.co/storage/v1/object/public/album/jang/${imageItem.name}"
-//                            Text(imageItem.name)
-                        Image(
-                            painter = rememberAsyncImagePainter(itemUrl),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(1f),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
+//        Column {
+//            imageList.chunked(3).forEach { rowImages ->
+//                Row(
+//                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+//                    modifier = Modifier.fillMaxWidth()
+//                ) {
+//                    rowImages.forEach { imageItem ->
+//                        val itemUrl =
+//                            "https://${BuildConfig.API_URL}.supabase.co/storage/v1/object/public/album/jang/${imageItem.name}"
+//                        Image(
+//                            painter = rememberAsyncImagePainter(itemUrl),
+//                            contentDescription = null,
+//                            modifier = Modifier
+//                                .weight(1f)
+//                                .aspectRatio(1f),
+//                            contentScale = ContentScale.Crop
+//                        )
+//                    }
+//                }
+//                Spacer(modifier = Modifier.height(8.dp))
+//            }
+//        }
         OutlinedTextField(
             value = diaryData,
             onValueChange = { diaryData = it },
@@ -228,13 +226,13 @@ fun DiaryScreen(
                             }
                         }
 
-                        deleteFileFromSuperbaseLaunchIO(
+                        deleteFileFromSupabaseLaunchIO(
                             fileName = "jang/$date/main.jpg"
                         )
                     }
                     Toast.makeText(context, "$date 일기 삭제 완료", Toast.LENGTH_SHORT).show()
                     navController.popBackStack()
-                },modifier = Modifier.weight(1f)
+                }, modifier = Modifier.weight(1f)
             ) {
                 Text(text = "삭제")
             }
@@ -260,17 +258,20 @@ data class DiaryLog(
     val user: String,
     val diary: String,
     val created_at: String,
+    val mainIMGpath: String,
 )
 
 fun createDiaryLog(
     inputUser: String,
     inputdiary: String,
     inputCreated_at: String,
+    input_mainIMGpath: String,
 ): DiaryLog {
     return DiaryLog(
         user = inputUser,
         diary = inputdiary,
         created_at = inputCreated_at,
+        mainIMGpath = input_mainIMGpath
     )
 }
 

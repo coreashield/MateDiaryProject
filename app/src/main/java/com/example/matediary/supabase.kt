@@ -19,10 +19,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 import kotlin.time.Duration.Companion.minutes
 
 
-object SupabseClient {
+object SupabaseClient {
     val client get() = supabase
 
     private val supabase = createSupabaseClient(
@@ -48,7 +49,7 @@ object SupabseClient {
         }
     }
 
-    fun deleteFileFromSuperbaseLaunchIO(fileName: String){
+    fun deleteFileFromSupabaseLaunchIO(fileName: String){
         val storage = supabase.storage
         CoroutineScope(Dispatchers.IO).launch {
             storage["album"].delete(fileName)
@@ -83,11 +84,11 @@ fun getFileUrlFromSupabase(
     fileName: String,
     onUrlRetrieved: (String) -> Unit,
 ) {
-    return SupabseClient.getFileUrl(bucketName, fileName, onUrlRetrieved)
+    return SupabaseClient.getFileUrl(bucketName, fileName, onUrlRetrieved)
 }
 
 fun uploadFileToSupabase(context: Context, bucketName: String, fileName: String, imageUri: Uri) {
-    val supabase = SupabseClient.client
+    val supabase = SupabaseClient.client
     val storage = supabase.storage
 
     CoroutineScope(Dispatchers.IO).launch {
@@ -119,12 +120,12 @@ suspend fun getImageList(
     bucketName: String = "album",
     folderPath: String = "jang/2024-6-1/",
 ): List<BucketItem> {
-    val bucket = SupabseClient.client.storage.from(bucketName)
+    val bucket = SupabaseClient.client.storage.from(bucketName)
     return bucket.list(folderPath)
 }
 
-suspend fun getData(): List<MateInfo> {
-    val supabase = SupabseClient.client
+suspend fun getMateData(): List<MateInfo> {
+    val supabase = SupabaseClient.client
     val result = supabase.from("mateinfo")
         .select()
         {
@@ -137,24 +138,23 @@ suspend fun getData(): List<MateInfo> {
 
 
 //양식 : 2024-6-1
-suspend fun DiarygGetData(date: String?): List<DiaryLog> {
-    val supabase = SupabseClient.client
+suspend fun DiaryGetData(date: String?): List<DiaryLog> {
+    val supabase = SupabaseClient.client
 
-    // yyyyMMdd 형식으로 변환
-    val formattedDate = date?.let {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd") // 기존 형식
-        val outputFormat = SimpleDateFormat("yyyyMMdd") // 원하는 형식
+    // yyyyMMdd 형식으로 변환 및 다음 날짜 계산
+    val (formattedDate, nextDate) = date?.let {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) // 기존 형식
+        val outputFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault()) // 원하는 형식
         val parsedDate = inputFormat.parse(it)
-        outputFormat.format(parsedDate)
-    }
+        val formattedDate = parsedDate?.let { it1 -> outputFormat.format(it1) }
 
-    val nextDate = formattedDate?.let {
-        val sdf = SimpleDateFormat("yyyyMMdd")
-        val calendar = Calendar.getInstance()
-        calendar.time = sdf.parse(it)!!
-        calendar.add(Calendar.DATE, 1)
-        sdf.format(calendar.time)
-    }
+        val calendar = Calendar.getInstance().apply {
+            time = parsedDate!!
+            add(Calendar.DATE, 1)
+        }
+        val nextDate = outputFormat.format(calendar.time)
+        formattedDate to nextDate
+    } ?: (null to null)
 
     val result = supabase.from("DailyLog")
         .select()
