@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -101,44 +103,65 @@ fun PhotoAlbumScreen(navController: NavHostController, date: String) {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Photo Album")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(onClick = {
-                            showDatePickerDialog(
-                                context,
-                                selectedDate,
-                            ) { date ->
-                                selectedDate = date
+                    Column(modifier = Modifier
+                        .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Photo Album")
+
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(onClick = {
+                                showDatePickerDialog(
+                                    context,
+                                    selectedDate,
+                                ) { date ->
+                                    selectedDate = date
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.DateRange,
+                                    contentDescription = "Pick Date"
+                                )
                             }
-                        }) {
-                            Icon(
-                                Icons.Default.DateRange,
-                                contentDescription = "Pick Date"
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = selectedDate, textAlign = TextAlign.Center)
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = selectedDate, textAlign = TextAlign.Center)
+
+                        HorizontalDivider(
+
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .padding(end = 30.dp)
+
+                        )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigate("calendar") }) {
+                    IconButton(onClick = {
+                        navController.navigate("calendar")
+                    }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "back",
-                            Modifier.padding(start = 4.dp)
                         )
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+            FloatingActionButton(onClick = {
+                launcher.launch(
+                    PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                    )
+                )
+            }) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
             }
-            TODO() //선택 된 이미지 업로드
+//           TODO() //선택 된 이미지 업로드
         }
     ) { innerPadding ->
         LazyColumn(

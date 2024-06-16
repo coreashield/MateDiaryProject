@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,14 +25,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Card
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme.colors
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.AccountBox
 import androidx.compose.material.icons.rounded.Create
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,10 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -61,6 +65,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.AsyncImage
+import com.example.matediary.ui.theme.EnlargedImageView
 import com.example.matediary.ui.theme.MateDiaryTheme
 import com.example.matediary.ui.theme.PhotoAlbumScreen
 import getFileUrlFromSupabase
@@ -102,6 +107,7 @@ object CardDataHolder {
 fun MainCalenderView(navController: NavHostController) {
     var cardData by remember { mutableStateOf(CardDataHolder.defaultCardData) }
     var imageUrl by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -120,9 +126,9 @@ fun MainCalenderView(navController: NavHostController) {
                     cardData = CardPofileData(
                         imageUri = "", // 필요한 경우 여기에 값을 넣습니다.
                         imageDescription = it[0].name,
-                        name = "이름 : ${it[0].name}",
-                        age = "나이 : ${age}살",
-                        description = "생일 : ${it[0].year}년 ${it[0].month}월 ${it[0].day}일"
+                        name = "${it[0].name}",
+                        age = "${age}살",
+                        description = "${it[0].year}년 ${it[0].month}월 ${it[0].day}일"
                     )
                 }
 
@@ -130,116 +136,112 @@ fun MainCalenderView(navController: NavHostController) {
                     imageUrl = url
                     // cardData를 업데이트하여 imageUri를 포함시킵니다.
                     cardData = cardData.copy(imageUri = imageUrl)
+                    // 데이터 읽었을 때 로딩완료.
+                    isLoading = false
                 }
             }
         }
-        CardProfileItem(cardData)
-        CalendarView(navController)
+
+        if (isLoading) {
+            // 로딩 중일 때 표시할 화면
+            CircularProgressIndicator()
+        } else {
+            // 데이터가 로딩된 후 표시할 화면
+            CardProfileItem(cardData)
+            CalendarView(navController)
+        }
     }
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarView(navController: NavController) {
-    //초기값은 오늘 날짜로 지정
+    // 초기값은 오늘 날짜로 지정
     val selectedDate = remember { mutableStateOf(todayDate()) }
     var diaryLogText by remember { mutableStateOf<List<DiaryLog>?>(null) }
 
-    //전체화면 비율에 따라 달력, 네비게이션 크기 수정
+    // 전체화면 비율에 따라 달력, 네비게이션 크기 수정
     val screenHeight = LocalConfiguration.current.screenHeightDp
     val desiredHeight = screenHeight.dp
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = Color.White,
-                shape = RectangleShape
-            )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(desiredHeight),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            LaunchedEffect(selectedDate.value) {
-                if (selectedDate.value.isNotEmpty()) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val diaryData = DiaryGetData(selectedDate.value)
-                        diaryLogText = diaryData
-                    }
+    Scaffold(
+        floatingActionButton = {
+            Column {
+                SmallFloatingActionButton(
+                    onClick = { navController.navigate("diary/${selectedDate.value}") },
+                    containerColor = colors.secondaryVariant,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Create,
+                        contentDescription = "",
+                        tint = Color.White,
+                    )
+                }
+                SmallFloatingActionButton(
+                    onClick = { navController.navigate("gallery/${selectedDate.value}") },
+                    containerColor = colors.secondaryVariant,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AccountBox,
+                        contentDescription = "",
+                        tint = Color.White,
+                    )
                 }
             }
-            AndroidView(factory = { context ->
-                android.widget.CalendarView(context).apply {
-                    val today = Calendar.getInstance()
-
-                    date = today.timeInMillis
-                    setOnDateChangeListener { _, year, month, dayOfMonth ->
-                        val date = "$year-${month + 1}-$dayOfMonth"
-                        selectedDate.value = date
+        },
+        bottomBar = {
+            BottomNavigationButtons(navController)
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(color = Color.White)
+                .padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(desiredHeight),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                LaunchedEffect(selectedDate.value) {
+                    if (selectedDate.value.isNotEmpty()) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val diaryData = DiaryGetData(selectedDate.value)
+                            diaryLogText = diaryData
+                        }
                     }
                 }
-            })
+                AndroidView(factory = { context ->
+                    android.widget.CalendarView(context).apply {
+                        val today = Calendar.getInstance()
 
-            val diaries: List<String>? = diaryLogText?.map { it.diary }
-            val mainImgPathes: List<String>? = diaryLogText?.map { it.mainIMGpath }
+                        date = today.timeInMillis
+                        setOnDateChangeListener { _, year, month, dayOfMonth ->
+                            val date = "$year-${month + 1}-$dayOfMonth"
+                            selectedDate.value = date
+                        }
+                    }
+                })
 
-            //일기 데이터 box로 묶기(SmallFloatingActionButton 와 겹칠 수 있어서)
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.TopCenter // 내용물을 아래 중앙에 정렬합니다.
-            ) {
-                DiaryTable(diaries, mainImgPathes, selectedDate.value, navController)
+                val diaries: List<String>? = diaryLogText?.map { it.diary }
+                val mainImgPathes: List<String>? = diaryLogText?.map { it.mainIMGpath }
 
                 Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.BottomCenter // 내용물을 아래 중앙에 정렬합니다.
+                    contentAlignment = Alignment.TopCenter
                 ) {
-                    //화면 맨 아래에 위치할 수 있기 새로운 box로 묶어줌
-                    BottomNavigationButtons(navController)
-
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 64.dp, end = 24.dp),
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        SmallFloatingActionButton(
-                            onClick = { navController.navigate("diary/${selectedDate.value}") },
-                            containerColor = colors.secondaryVariant,
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Create,
-                                contentDescription = "",
-                                tint = Color.White,
-                            )
-                        }
-
-                        SmallFloatingActionButton(
-                            onClick = { navController.navigate("gallery/${selectedDate.value}") },
-                            containerColor = colors.secondaryVariant,
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.AccountBox,
-                                contentDescription = "",
-                                tint = Color.White,
-                            )
-                        }
-
-                    }
-
+                    DiaryTable(diaries, mainImgPathes, selectedDate.value, navController)
                 }
             }
-
         }
     }
-
 }
-
 
 @Composable
 fun Navigator() {
@@ -247,9 +249,11 @@ fun Navigator() {
     val navController = rememberNavController()
     var showSplash by remember { mutableStateOf(true) }
 
+    // 스플래시 화면 표시 여부 확인
     if (showSplash) {
         SplashScreen(onTimeout = { showSplash = false })
     } else {
+        // 네비게이션 호스트 설정
         NavHost(navController, startDestination = "calendar") {
             composable("calendar") {
                 MainCalenderView(navController)
@@ -258,11 +262,9 @@ fun Navigator() {
                 val date = backStackEntry.arguments?.getString("date")
                 GalleryView(date.toString(), navController)
             }
-
             composable("gallery/{date}") { backStackEntry ->
                 val date = backStackEntry.arguments?.getString("date")
                 date?.let { PhotoAlbumScreen(navController, it) }
-//                GalleryView(date.toString(), navController)
             }
             composable("mateinfo") {
                 MainScreen(navController)
@@ -283,7 +285,6 @@ fun Navigator() {
                     supabase = supabase
                 )
             }
-
             composable("diary/{date}") { backStackEntry ->
                 val date = backStackEntry.arguments?.getString("date")
                 DiaryScreen(date, "", navController, supabase)
@@ -294,34 +295,39 @@ fun Navigator() {
 
 @Composable
 fun BottomNavigationButtons(navController: NavController) {
+    // 네비게이션 항목 리스트
     val items = listOf(
         Screen.Home,
+        Screen.Gallery,
         Screen.Settings
     )
 
     BottomNavigation {
+        // 현재 네비게이션 상태 가져오기
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
+        // 항목 리스트를 순회하며 네비게이션 버튼 생성
         items.forEach { screen ->
             BottomNavigationItem(
-                modifier = Modifier
-                    .background(color = Color.LightGray),
+                modifier = Modifier.background(color = Color.LightGray), // 배경 색상 지정
                 icon = {
                     when (screen) {
-                        Screen.Home -> Icon(Icons.Default.DateRange, contentDescription = null)
-                        Screen.Gallery -> Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = null
-                        )
-
-                        Screen.Settings -> Icon(Icons.Default.AccountBox, contentDescription = null)
+                        Screen.Home -> Icon(Icons.Default.DateRange, contentDescription = null) // 홈 아이콘
+                        Screen.Gallery -> Icon(Icons.Default.AccountCircle, contentDescription = null) // 갤러리 아이콘
+                        Screen.Settings -> Icon(Icons.Default.Settings, contentDescription = null) // 설정 아이콘
                     }
                 },
-                label = { Text(screen.title) },
-                selected = currentDestination?.route == screen.route,
+                label = { Text(screen.title) }, // 항목 제목
+                selected = currentDestination?.route == screen.route, // 현재 선택된 항목인지 확인
                 onClick = {
                     navController.navigate(screen.route) {
+                        // 동일한 경로로 이동할 때 뒤로가기 스택에서 중복 방지
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }
             )
@@ -344,21 +350,22 @@ fun DiaryTable(
 ) {
     LazyColumn(
         modifier = Modifier
-            .height(320.dp)
+            .fillMaxHeight()
             .padding(top = 8.dp),
-//        horizontalAlignment = Alignment.CenterHorizontally // 수평 가운데 정렬
-        verticalArrangement = Arrangement.Top // 수평 가운데 정렬
+        verticalArrangement = Arrangement.Top // 수직 상단 정렬
     ) {
-        itemsIndexed(diaries ?: emptyList()) { index, diary ->
+        // 다이어리 리스트가 비어있을 경우를 처리
+        itemsIndexed(diaries.orEmpty()) { index, diary ->
             val diaryData = CardDiaryData(
-                imageUri = mainImgPath?.getOrNull(index) ?: "",
+                imageUri = mainImgPath?.getOrNull(index) ?: "", // 이미지 경로가 없을 경우 빈 문자열 사용
                 diary = diary,
                 date = date,
             )
-            CardDiaryItem(diaryData, navController)
+            CardDiaryItem(diaryData, navController) // 각 다이어리 아이템을 CardDiaryItem 컴포저블로 표시
         }
     }
 }
+
 
 
 fun todayDate(): String {
@@ -378,7 +385,7 @@ fun calculateAge(birthYear: Int, birthMonth: Int, birthDay: Int): Int {
 }
 
 data class CardPofileData(
-    val imageUri: String,
+    var imageUri: String,
     val imageDescription: String,
     val name: String,
     val age: String,
@@ -393,8 +400,7 @@ data class CardDiaryData(
 
 @Composable
 fun CardProfileItem(cardData: CardPofileData) {
-    val color = Color(0x33000000) //그레이
-
+    var showEnlargedImage by remember { mutableStateOf(false) }
     Card(
         elevation = 8.dp,
         modifier = Modifier
@@ -406,38 +412,49 @@ fun CardProfileItem(cardData: CardPofileData) {
                 .padding(16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Start
         ) {
             if (cardData.name == "") {
                 Text("등록 된 메이트 정보 없음!")
             } else {
                 AsyncImage(
-                    model = cardData.imageUri,
-                    placeholder = ColorPainter(color), // 이미지가 없을때
+                    model = cardData.imageUri?.takeIf { it.isNotEmpty() } ?: "",
+                    placeholder = ColorPainter(Color.Gray), // 이미지가 없을 때 회색 표시
                     contentScale = ContentScale.Crop,
                     contentDescription = "",
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
+                        .clickable {
+                            cardData.imageUri?.let {
+                                showEnlargedImage = true
+                            }
+                        }
                 )
 
-                Spacer(modifier = Modifier.size(4.dp))
+                Spacer(modifier = Modifier.size(16.dp))
                 Column(
                     verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${cardData.name} , ${cardData.age}"
+                        text = cardData.name
                     )
                     Spacer(modifier = Modifier.size(4.dp))
-
                     Text(
-                        text = cardData.description,
+                        text = cardData.age
                     )
                 }
-            }
 
+            }
         }
+    }
+
+    if (showEnlargedImage) {
+        EnlargedImageView(
+            imageUrl = cardData.imageUri ?: "",
+            onClose = { showEnlargedImage = false },
+        )
     }
 }
 
@@ -446,44 +463,48 @@ fun CardDiaryItem(
     diaryData: CardDiaryData,
     navController: NavController
 ) {
-    val color = Color(0x33000000) //그레이
+    val placeholderColor = Color(0x33000000) // 회색
+
     Card(
         elevation = 8.dp,
         modifier = Modifier
-            .padding(start = 30.dp, end = 30.dp)
-            // 카드 클릭 시, diaryData.date와 diaryData.diary 값을 포함하여 네비게이션
+            .fillMaxSize()
+            .padding(horizontal = 30.dp) // 수평 및 수직 여백 설정
             .clickable {
-                val encodedDiary =
-                    URLEncoder
-                        .encode(diaryData.diary, StandardCharsets.UTF_8.toString())
-                        .replace("+", " ")
+                // 카드 클릭 시, diaryData.date와 diaryData.diary 값을 포함하여 네비게이션
+                val encodedDiary = URLEncoder
+                    .encode(diaryData.diary, StandardCharsets.UTF_8.toString())
+                    .replace("+", " ")
                 navController.navigate("diary/${diaryData.date}?diary=$encodedDiary")
-            },
+            }
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 10.dp, end = 50.dp, bottom = 10.dp, top = 10.dp)
+                .padding(10.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-
+            horizontalArrangement = Arrangement.Start // 수평 정렬을 시작점으로 변경
         ) {
+            // 비동기 이미지 로딩
             AsyncImage(
-                model = diaryData.imageUri?.takeIf { it.isNotEmpty() } ?: "",
-                placeholder = ColorPainter(color), // 이미지가 없을때 넣을 것
+                model = diaryData.imageUri.takeIf { it.isNotEmpty() } ?: "",
+                placeholder = ColorPainter(placeholderColor), // 이미지가 없을 때 표시할 색상
                 contentScale = ContentScale.Crop,
-                contentDescription = "",
+                contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
             )
 
             Spacer(modifier = Modifier.size(8.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+            // 다이어리 내용 표시
+            Column {
                 Text(
                     text = diaryData.diary,
                     fontSize = 16.sp,
-                    maxLines = 2
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis // 텍스트가 길 때 줄임표 처리
                 )
             }
         }

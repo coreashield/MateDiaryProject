@@ -1,6 +1,5 @@
 package com.example.matediary
 
-import SupabaseClient.deleteFileFromSupabaseLaunchIO
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -9,7 +8,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -166,15 +164,6 @@ fun GalleryView(
                 })
             }
         }
-    }
-
-    // 선택된 이미지가 있을 때 EnlargedImageView를 표시합니다.
-    selectedImageUrl?.let { imageUrl ->
-        EnlargedImageView(
-            imageUrl = imageUrl,
-            onClose = { selectedImageUrl = null },
-            fileName = fileName,
-        )
     }
 }
 
@@ -358,35 +347,5 @@ fun DatePickerWithDateSelectableDatesSample(onDateSelected: (String) -> Unit) {
                     onDateSelected(selectedDate)
                 }
         )
-    }
-}
-
-@Composable
-fun EnlargedImageView(
-    imageUrl: String,
-    onClose: () -> Unit,
-    fileName: String,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = rememberAsyncImagePainter(imageUrl),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(onClick = onClose), // 이미지를 클릭하면 닫기 동작 실행
-            contentScale = ContentScale.Fit
-        )
-
-        Button(onClick = {
-            deleteFileFromSupabaseLaunchIO(fileName)
-
-        }) {
-            Text(text = "삭제")
-        }
     }
 }
