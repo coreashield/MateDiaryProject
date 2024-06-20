@@ -28,7 +28,6 @@ import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme.colors
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.AccountBox
@@ -298,7 +297,7 @@ fun BottomNavigationButtons(navController: NavController) {
     // 네비게이션 항목 리스트
     val items = listOf(
         Screen.Home,
-        Screen.Gallery,
+//        Screen.Gallery,
         Screen.Settings
     )
 
@@ -314,7 +313,7 @@ fun BottomNavigationButtons(navController: NavController) {
                 icon = {
                     when (screen) {
                         Screen.Home -> Icon(Icons.Default.DateRange, contentDescription = null) // 홈 아이콘
-                        Screen.Gallery -> Icon(Icons.Default.AccountCircle, contentDescription = null) // 갤러리 아이콘
+//                        Screen.Gallery -> Icon(Icons.Default.AccountCircle, contentDescription = null) // 갤러리 아이콘
                         Screen.Settings -> Icon(Icons.Default.Settings, contentDescription = null) // 설정 아이콘
                     }
                 },
@@ -337,7 +336,7 @@ fun BottomNavigationButtons(navController: NavController) {
 
 sealed class Screen(val route: String, val title: String) {
     data object Home : Screen("calendar", "Home")
-    data object Gallery : Screen("gallery", "갤러리")
+//    data object Gallery : Screen("gallery", "갤러리")
     data object Settings : Screen("mateinfo", "정보")
 }
 

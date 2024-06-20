@@ -29,7 +29,7 @@ class SplashScreen {
 fun SplashScreen(onTimeout: () -> Unit) {
     // Use a LaunchedEffect to navigate after a delay
     LaunchedEffect(Unit) {
-        delay(3000) // 3초 동안 스플래시 스크린을 표시합니다.
+        delay(4000) // 3초 동안 스플래시 스크린을 표시합니다.
         onTimeout()
     }
 

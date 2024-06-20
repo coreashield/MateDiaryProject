@@ -108,7 +108,7 @@ fun DiaryScreen(
         inputUser = "jang",
         inputdiary = diaryData,
         inputCreated_at = date.toString(),
-        input_mainIMGpath  = "",
+        input_mainIMGpath = "",
     )
 
     Column(
@@ -154,28 +154,6 @@ fun DiaryScreen(
         ImageUploadIcon(imageUri, launcher, imageUrl)
         Spacer(modifier = Modifier.height(20.dp))
 
-//        Column {
-//            imageList.chunked(3).forEach { rowImages ->
-//                Row(
-//                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-//                    modifier = Modifier.fillMaxWidth()
-//                ) {
-//                    rowImages.forEach { imageItem ->
-//                        val itemUrl =
-//                            "https://${BuildConfig.API_URL}.supabase.co/storage/v1/object/public/album/jang/${imageItem.name}"
-//                        Image(
-//                            painter = rememberAsyncImagePainter(itemUrl),
-//                            contentDescription = null,
-//                            modifier = Modifier
-//                                .weight(1f)
-//                                .aspectRatio(1f),
-//                            contentScale = ContentScale.Crop
-//                        )
-//                    }
-//                }
-//                Spacer(modifier = Modifier.height(8.dp))
-//            }
-//        }
         OutlinedTextField(
             value = diaryData,
             onValueChange = { diaryData = it },
@@ -196,12 +174,12 @@ fun DiaryScreen(
                     if (diaryData.isEmpty()) {
                         Toast.makeText(context, "내용을 입력해주세요!", Toast.LENGTH_SHORT).show()
                     } else {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            supabase.from("DailyLog").insert(insertInfo)
+                        imageUri?.let { uri ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                // 이미지 업로드
+                                uploadFileToSupabase(context, "album", "jang/$date/$uri", uri)
 
-                            // 이미지 업로드
-                            imageUri?.let { uri ->
-                                uploadFileToSupabase(context, "album", "jang/$date/main", uri)
+                                supabase.from("DailyLog").insert(insertInfo)
                             }
 
                         }
@@ -238,17 +216,6 @@ fun DiaryScreen(
             }
             Spacer(modifier = Modifier.weight(0.28f))
         }
-
-//        Row() {
-//            IconButton(onClick = { TODO() }) {
-//                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-//            }
-//
-//
-//            IconButton(onClick = { TODO() }) {
-//                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "forward")
-//            }
-//        }
     }
 }
 
